@@ -62,7 +62,75 @@ TOPICS:
 
 
 On the SERVERS part, you can put as many servers as you wish  (I have 3), you must specify their nodename (the name you want to use for them), their brand (currently ASUS or SUPERMICRO), their IP, IPMI USER, PASSWORD and the SDR values for the sensors you want to use, if you don't know the SDR values of the sensors you can use:
+
 ipmitool -I lanplus -L User -H "server-ip" -U "ipmi_user" -P "server_pass" sdr elist full
+
+```
+ipmitool -I lanplus -L User -H "server-ip" -U "ipmi_user" -P "server_pass" sdr elist full
+
+```
+
+and you should get something like this (ASUS):
+
+```
+5V_AUX           | 01h | ok  |  7.0 | 4.95 Volts
+3.3V_AUX         | 02h | ok  |  7.0 | 3.32 Volts
+CPU_Vcore        | 03h | ok  |  7.0 | 1.06 Volts
+VNN              | 04h | ok  |  7.0 | 0.84 Volts
+VCCSRAM          | 05h | ok  |  7.0 | 1.05 Volts
+VCCM             | 06h | ok  |  7.0 | 1.21 Volts
+1.05V            | 07h | ok  |  7.0 | 1.06 Volts
+1.8V             | 08h | ok  |  7.0 | 1.80 Volts
+BAT              | 0Bh | ok  |  7.0 | 3.14 Volts
+12V              | 0Fh | ok  |  7.0 | 12.10 Volts
+MB Temp          | 30h | ok  |  3.0 | 47 degrees C
+Card side Temp   | 31h | ok  |  3.0 | 56 degrees C
+TR1 Temp         | 32h | ns  |  3.0 | No Reading
+CPU1 Temp        | 33h | ok  |  3.0 | 78 degrees C
+MemA Temp        | 40h | ok  |  3.0 | 63 degrees C
+MemB Temp        | 41h | ok  |  3.0 | 62 degrees C
+CPU1_FAN1        | 60h | ok  |  7.0 | 5000 RPM
+FRNT_FAN1        | 62h | ok  |  7.0 | 5200 RPM
+FRNT_FAN2        | 63h | ok  |  7.0 | 5000 RPM
+REAR_FAN1        | 66h | ns  |  7.0 | No Reading
+
+```
+The fourth column has the SDR and the first the SUBCLASS
+
+or this (SUPERMICRO):
+
+```
+CPU Temp         | 01h | ok  |  3.1 | 77 degrees C
+System Temp      | 0Bh | ok  |  7.11 | 71 degrees C
+Peripheral Temp  | 0Ch | ok  |  7.12 | 52 degrees C
+DIMMA1 Temp      | B0h | ok  | 32.64 | 68 degrees C
+DIMMA2 Temp      | B1h | ok  | 32.65 | 66 degrees C
+DIMMB1 Temp      | B4h | ok  | 32.68 | 64 degrees C
+DIMMB2 Temp      | B5h | ok  | 32.69 | 66 degrees C
+FAN1             | 41h | ok  | 29.1 | 1300 RPM
+FAN2             | 42h | ok  | 29.2 | 1300 RPM
+FAN3             | 43h | ns  | 29.3 | No Reading
+FANA             | 44h | ns  | 29.4 | No Reading
+12V              | 30h | ok  |  7.48 | 12.06 Volts
+5VCC             | 31h | ok  |  7.49 | 5.03 Volts
+3.3VCC           | 32h | ok  |  7.50 | 3.35 Volts
+VBAT             | 33h | ok  |  7.51 | 3.06 Volts
+Vcpu             | 34h | ok  |  3.52 | 1.04 Volts
+VDIMM            | 35h | ok  | 32.53 | 1.22 Volts
+PVCCSRAM         | 36h | ok  |  7.54 | 1.02 Volts
+P1V05_A          | 37h | ok  |  7.55 | 1.05 Volts
+5VSB             | 38h | ok  |  7.56 | 4.97 Volts
+3.3VSB           | 39h | ok  |  7.57 | 3.30 Volts
+PVNN             | 3Ah | ok  |  7.58 | 0.85 Volts
+PVPP             | 3Bh | ok  |  7.59 | 2.70 Volts
+P1V538_A         | 3Ch | ok  |  7.60 | 1.54 Volts
+1.2V BMC         | 3Dh | ok  |  7.61 | 1.22 Volts
+PVCC_REF         | 3Eh | ok  |  7.62 | 1.26 Volts
+
+```
+The fourth column has the SDR value
+
+
 to connect to your server and see all of the available sensors and their SDR value.
 
 
