@@ -1,7 +1,6 @@
 #!/bin/python 
 # Las dependencias:
 from logging import NullHandler
-#from pickle import APPEND
 import yaml
 import json
 import subprocess
@@ -12,6 +11,7 @@ import time
 parser = argparse.ArgumentParser(description='This is a simple python script that uses IPMITools in order to connect to your servers, review their power states and SDRs, if defined, and then send them through mqtt to an mqtt broker in order for Home Assistant to use them. In order for it to work, you must have filled your mqtt connetion information and your IPMI server connection information.')
 
 args = parser.parse_args()
+
 #Here I load yaml configuration files and create variables for the elements in the yaml
 
 ha_sensor_topic="homeassistant/sensor"
@@ -58,7 +58,7 @@ except Exception as exception:
     print(f"Please check your YAML, it might be missing some parts. The exception is {exception}")
 
 
-# Connect to MQTT
+# Connect to MQTT - this I took directly from the paho docs.
 
 
 
@@ -82,7 +82,6 @@ client.on_message = on_message
 client.username_pw_set(mqtt_user, password=mqtt_pass)
 
 
-
 #Get GUID for each server
 try:
     server_number = 0 #first server will be 0
@@ -97,10 +96,81 @@ try:
         ipmi_command_subprocess = subprocess.run(ipmi_guid_command, shell=True, capture_output=True)
         ipmi_guid_pure = ipmi_command_subprocess.stdout.decode("utf-8") #I decode the shell output with UTF-8
         ipmi_guid_pure = ipmi_guid_pure[15:] # I strip the sentence System GUID : 
-        guid_list.append(ipmi_guid_pure.strip()) #I add this server's guid to the list on the position 0
+        guid_list.append(ipmi_guid_pure.strip()) #I add this server's guid to the list on the position equal to the number of the server on the loop
         server_number = server_number + 1
 except Exception as exception:
     print(f"There is an error generating your server's guid. The error is the following: {exception}")
+
+
+#First run - device initialization on HA - I need to move this to only be executed when an argument is called.
+try:    
+    server_number = 0
+    for i in server_config:
+        server = server_config[server_number]
+        server_nodename = server['IPMI_NODENAME']
+        server_mqtt_config_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "config"
+        server_mqtt_state_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "state"
+        mqtt_payload = {"device_class" : "power", "name" : server_nodename + " " + power_topic , "unique_id" : guid_list[server_number], "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
+        mqtt_payload = json.dumps(mqtt_payload)  
+        print(mqtt_payload)
+        client.connect(mqtt_ip, 1883, 60)
+        client.publish(server_mqtt_config_topic, str(mqtt_payload))
+        server_number = server_number + 1
+
+
+
+
+
+except Exception as exception:
+    print(f"There was an error.{exception}")
+# First run Sensor initialization
+try:    
+    server_number = 0
+    for i in server_config:
+        sdr_number = 0
+        server = server_config[server_number]
+        server_nodename = server['IPMI_NODENAME']
+        sdr_list = server['SDRS']
+   
+        
+        for e in sdr_list:
+
+            current_sdr = sdr_list[sdr_number]
+            sdr_type = current_sdr['SDR_TYPE']
+            sdr_class = current_sdr['SDR_CLASS']
+            sdr_topic = sdr_topic_types[sdr_type]
+            if sdr_class == 'temperature':
+                unit = "°C"
+            elif sdr_class == 'fan':
+                unit = "rpm"
+            elif sdr_class == 'voltage':
+                unit = "V"
+            else:
+                print("no unit defined for this type")
+                unit = ""
+            server_mqtt_config_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "config"
+            server_mqtt_state_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "state"     
+            mqtt_payload = {"device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number], "Unit of Measurement" : unit, "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
+            mqtt_payload = json.dumps(mqtt_payload)  
+            print(mqtt_payload)
+            client.connect(mqtt_ip, 1883, 60)
+            client.publish(server_mqtt_config_topic, str(mqtt_payload)) 
+            sdr_number = sdr_number + 1
+        server_number = server_number + 1 
+
+except Exception as exception:
+    print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
+
+
+
+
+
+
+
+
+
+
+
 
 # Get Power data for each server if power topic is declared
 try:
@@ -115,14 +185,14 @@ try:
             server_ip = server['IPMI_IP']
             server_user = server['IPMI_USER']
             server_pass = server['IPMI_PASSWORD']
-            server_mqtt_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic
+            server_mqtt_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "state"
             ipmi_power_command = f"ipmitool -I lanplus -L User -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power status | cut -b 18-20"
             ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True)
             server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
             power_states[guid_list[server_number]] = server_power_state #I use the GUIDs as key with the server's power state as output
-            server_number = server_number + 1
             client.connect(mqtt_ip, 1883, 60)
             client.publish(server_mqtt_topic, server_power_state)
+            server_number = server_number + 1
 except Exception as exception:
     print(f"There is an error in your power sensor collection. The error is the following: {exception}")
 
@@ -195,7 +265,11 @@ try:
                 #sdr_states[guid_list[server_number]] = server_sdr_state #I use the GUIDs as key with the server's power state as output
                 if sdr_value == 'No':
                     sdr_value = ""
-                sdr_server_dict[sdr_type] = sdr_value 
+                sdr_topic = sdr_type
+                sdr_server_dict[sdr_type] = sdr_value
+                server_mqtt_state_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "state"     
+                client.connect(mqtt_ip, 1883, 60)
+                client.publish(server_mqtt_state_topic, sdr_value)
                 sdr_number = sdr_number + 1
            
             sdr_states[guid_list[server_number]] = sdr_server_dict
@@ -208,5 +282,4 @@ print(sdr_states)
 
 client.disconnect
 #Publication of data
-
 
