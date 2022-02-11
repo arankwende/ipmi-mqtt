@@ -65,6 +65,9 @@ On the SERVERS part, you can put as many servers as you wish  (I have 3), you mu
 ipmitool -I lanplus -L User -H "server-ip" -U "ipmi_user" -P "server_pass" sdr elist full
 to connect to your server and see all of the available sensors and their SDR value.
 
+
+
+```
 SERVERS:
       - IPMI_NODENAME: SERVER NAME
         BRAND: SERVER BRAND
@@ -76,6 +79,11 @@ SERVERS:
               SDR_CLASS: ENTITY CLASS FOR HA (CAN BE temperature, voltage or fan)
               SUBCLASS: IF IT'S AN ASUS PLEASE CHECK THE NAME FOR THE SENSOR ON IPMITOOL AND PUT IT HERE, for example Mb Temp
               VALUE: SDR VALUE 
+
+
+```
+
+
 
 After configuring this, the first time you run the script it will create the entities directly in your MQTT broker you will find them on Home Assistant in the MQTT broker's entity page (not on device, maybe in the future).
 
