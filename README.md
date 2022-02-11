@@ -4,7 +4,7 @@ Python app for IPMI states to be sent to Home Assistant via MQTT
 This is a simple application that will run continuosly on your server (current version must be executed each time), getting IPMI sensor data (executing IPMITOOLs trhough the shell) from one or many servers and then republishes that data to MQTT in a format that Home Assistant automatically recognizes as entities and (currently working on it) switches for On Off.
 The app requires:
 
-python and ipmitools to be install on the server:
+python and ipmitools to be installed on the server:
 ```
 sudo apt install python3 ipmitool
 ```
