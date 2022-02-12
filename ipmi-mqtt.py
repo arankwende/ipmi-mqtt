@@ -126,8 +126,7 @@ def main():
                 client.connect(mqtt_ip, 1883, 60)
                 client_publisher = client.publish(y, str(x), qos=1)
                 client_publisher.wait_for_publish
-
-        client.disconnect
+                client.disconnect
     except Exception as exception:
         print(f"There was an error sending your device configuration.The error is: {exception}")
     # First run Sensor initialization
@@ -170,10 +169,11 @@ def main():
                 sdr_payload[server_mqtt_config_topic] =  mqtt_payload
                 sdr_number = sdr_number + 1
             server_number = server_number + 1 
-            client.connect(mqtt_ip, 1883, 60)
+
             for x, y in sdr_payload.items():
+                client.connect(mqtt_ip, 1883, 60)
                 client.publish(x, str(y), qos=1).wait_for_publish
-            client.disconnect
+                client.disconnect
     except Exception as exception:
         print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
     if getattr(args,'i'):
@@ -287,11 +287,11 @@ def main():
                             sdr_sensor_mqtt_dict[server_mqtt_state_topic] = sdr_value
                             sdr_number = sdr_number + 1
                         sdr_states[guid_list[server_number]] = sdr_server_dict
-                        client.connect(mqtt_ip, 1883, 60)    
+   
                         for x, y in sdr_sensor_mqtt_dict.items():
-                            
+                                client.connect(mqtt_ip, 1883, 60) 
                                 client.publish(x,str(y), qos=1).wait_for_publish
-                        client.disconnect                        
+                                client.disconnect                        
                         server_number = server_number + 1 
             except Exception as exception:
                 print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
