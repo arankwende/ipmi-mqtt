@@ -101,22 +101,21 @@ def main():
             server_number = server_number + 1   
     except Exception as exception:
         print(f"There is an error generating your server's guid. The error is the following: {exception}")
-        #First run - device initialization on HA
-        try:    
-            server_number = 0
-            for i in server_config:
-                server = server_config[server_number]
-                server_nodename = server['IPMI_NODENAME']
-                server_mqtt_config_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "config"
-                server_mqtt_state_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "state"
-                mqtt_payload = {"device_class" : "power", "name" : server_nodename + " " + power_topic , "unique_id" : guid_list[server_number], "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
-                mqtt_payload = json.dumps(mqtt_payload)  
-                print(mqtt_payload)
-                client.connect(mqtt_ip, 1883, 60)
-                client.publish(server_mqtt_config_topic, str(mqtt_payload))
-                server_number = server_number + 1
-        except Exception as exception:
-            print(f"There was an error sending your device configuration.The error is: {exception}")
+        #First run - power device initialization on HA
+    try:    
+        server_number = 0
+        for i in server_config:
+            server = server_config[server_number]
+            server_nodename = server['IPMI_NODENAME']
+            server_mqtt_config_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "config"
+            server_mqtt_state_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "state"
+            mqtt_payload = {"device_class" : "power", "name" : server_nodename + " " + power_topic , "unique_id" : guid_list[server_number], "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
+            mqtt_payload = json.dumps(mqtt_payload)  
+            client.connect(mqtt_ip, 1883, 60)
+            client.publish(server_mqtt_config_topic, str(mqtt_payload))
+            server_number = server_number + 1
+    except Exception as exception:
+        print(f"There was an error sending your device configuration.The error is: {exception}")
     # First run Sensor initialization
     try:    
         server_number = 0
@@ -151,6 +150,7 @@ def main():
         print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
     if getattr(args,'i'):
         client.disconnect
+        quit()
     else:
         #Sensor data gathering
         while(True):
