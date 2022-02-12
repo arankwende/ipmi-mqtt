@@ -121,9 +121,12 @@ def main():
             mqtt_payload = json.dumps(mqtt_payload)  
             power_payload[mqtt_payload] = server_mqtt_config_topic
             server_number = server_number + 1
-        client.connect(mqtt_ip, 1883, 60)
+
         for x, y in power_payload.items():
-                client.publish(y, str(x), qos=1).wait_for_publish
+                client.connect(mqtt_ip, 1883, 60)
+                client_publisher = client.publish(y, str(x), qos=1)
+                client_publisher.wait_for_publish
+
         client.disconnect
     except Exception as exception:
         print(f"There was an error sending your device configuration.The error is: {exception}")
