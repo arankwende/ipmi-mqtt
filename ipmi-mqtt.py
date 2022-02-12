@@ -123,7 +123,7 @@ def main():
             server_number = server_number + 1
         client.connect(mqtt_ip, 1883, 60)
         for x, y in power_payload.items():
-                client.publish(y, str(x)).wait_for_publish
+                client.publish(y, str(x), qos=2).wait_for_publish
         client.disconnect
     except Exception as exception:
         print(f"There was an error sending your device configuration.The error is: {exception}")
@@ -169,7 +169,7 @@ def main():
             server_number = server_number + 1 
             client.connect(mqtt_ip, 1883, 60)
             for x, y in sdr_payload.items():
-                client.publish(x, str(y)).wait_for_publish
+                client.publish(x, str(y), qos=2).wait_for_publish
             client.disconnect
     except Exception as exception:
         print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
@@ -198,7 +198,7 @@ def main():
                         server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
                         power_states[guid_list[server_number]] = server_power_state #I use the GUIDs as key with the server's power state as output
                         client.connect(mqtt_ip, 1883, 60)
-                        client.publish(server_mqtt_topic, server_power_state).wait_for_publish
+                        client.publish(server_mqtt_topic, server_power_state, qos=2).wait_for_publish
                         client.disconnect
                         server_number = server_number + 1
             except Exception as exception:
@@ -287,7 +287,7 @@ def main():
                         client.connect(mqtt_ip, 1883, 60)    
                         for x, y in sdr_sensor_mqtt_dict.items():
                             
-                                client.publish(x,str(y)).wait_for_publish
+                                client.publish(x,str(y), qos=2).wait_for_publish
                         client.disconnect                        
                         server_number = server_number + 1 
             except Exception as exception:
