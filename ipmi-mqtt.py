@@ -254,14 +254,11 @@ def main():
                 quit()
             else:
                 time.sleep(period)
-
+configuration = open(sys.path[0] + '/config.yaml', 'r')
+config = yaml.safe_load(configuration)
 if getattr(args,'d'):
-    configuration = open('config.yaml', 'r')
-    config = yaml.safe_load(configuration)
     context = daemon.DaemonContext(files_preserve = [configuration])
     with context:
         main()
 elif __name__== '__main__':
-        configuration = open('config.yaml', 'r')
-        config = yaml.safe_load(configuration)
         main()
