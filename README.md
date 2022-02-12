@@ -23,22 +23,32 @@ paho-mqtt:
 pip install paho-mqtt
 ```
 
-Then, copy this repo, make the script executable and run it.
+python-daemon:
+```
+pip install python-daemon
+```
 
-That's it.
+Then, copy this repo, complete the YAML file and rename it config.yaml, make the script executable and run it.
+
+That's it. You can execute it with -i in order to just execute the config payload being sent to the MQTT topic, or -d in order to have the script run as a daemon. You can also set a time (in seconds) inside the YAML file for the script to run in a loop and get new sensor values in that time period
+The YAML has a 
 
 
 All of the configuration is done via a config.yaml file, an example file is provided.
 
 It must contain:
 
-An Mqtt configuration:
+An Mqtt configuration with IP, user, password, the topics for sensors (the example ones are for HA to do discovery) and the time period, which is the amount of time before re-runs of the sensor data gathering, if the set to 0 the script will run just one time, otherwise it will run until killed:
 paho-mqtt:
 ```
 MQTT:
     MQTT_ip: MQTT BROKER IP
     MQTT_USER: 'MQTT user'
     MQTT_PW: 'MQTTPASSWORD'
+    HA_BINARY: 'homeassistant/binary_sensor'
+    HA_SENSOR: 'homeassistant/sensor'
+    HA_SWITCH: 'homeassistant/switch'
+    TIME_PERIOD: 300
 
 ```
 

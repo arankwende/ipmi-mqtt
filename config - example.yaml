@@ -2,6 +2,11 @@ MQTT:
     MQTT_ip: 192.168.XXX.XXX
     MQTT_USER: 'MQTTUSER'
     MQTT_PW: 'MQTTPASSWORD'
+    HA_BINARY: 'homeassistant/binary_sensor' # MQTT topics for home assistant to automatically detect devices
+    HA_SENSOR: 'homeassistant/sensor'
+    HA_SWITCH: 'homeassistant/switch'
+    TIME_PERIOD: 300 # Time to try to get new sensor values. Set to 0 for one time execution.
+
 TOPICS:
     POWER: 'server_power_state' #This is to get the server's ON OFF state, if you don't want it just leave an empty string
     SDR_TYPES: #THESE ARE JUST EXAMPLES OF NAMES FOR THE SENSORS, ITS A DICTIONARY SO THE first part (before :) can be whatever you want, just ensure it matches the value in SDR TYPE for this description.
