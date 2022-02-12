@@ -1,7 +1,7 @@
 # ipmi-mqtt
 Python app for IPMI states to be sent to Home Assistant via MQTT
 
-This is a simple application that will run continuosly on your server (current version must be executed each time), getting IPMI sensor data (executing IPMITOOLs trhough the shell) from one or many servers and then republishes that data to MQTT in a format that Home Assistant automatically recognizes as entities and (currently working on it) switches for On Off.
+This is a simple application that will run continuosly on your server (current version must be executed each time), getting IPMI sensor data (executing IPMITOOLs trhough the shell) from one or many servers and then republishes that data to MQTT in a format that Home Assistant automatically recognizes as devices, each with its own entities and (in the future) switches for On or Off.
 The app requires:
 
 python and ipmitools to be installed on the server:
@@ -30,8 +30,8 @@ pip install python-daemon
 
 Then, copy this repo, complete the YAML file and rename it config.yaml, make the script executable and run it.
 
-That's it. You can execute it with -i in order to just execute the config payload being sent to the MQTT topic, or -d in order to have the script run as a daemon. You can also set a time (in seconds) inside the YAML file for the script to run in a loop and get new sensor values in that time period
-The YAML has a 
+That's it. You can execute it with -i in order to just execute the config payload being sent to the MQTT topic, or -d in order to have the script run as a daemon. You can also set a time (in seconds) inside the YAML file for the script to run in a loop and get new sensor values in that time period.
+
 
 
 All of the configuration is done via a config.yaml file, an example file is provided.
@@ -154,7 +154,7 @@ SERVERS:
         IPMI_PASSWORD: 'SERVER IPMI PASSWORD'
         SDRS:
             - SDR_TYPE: TYPE OF SDR (a number to match the dictionary of types in topics)
-              SDR_CLASS: ENTITY CLASS FOR HA (CAN BE temperature, voltage or fan)
+              SDR_CLASS: ENTITY CLASS FOR HA (CAN BE temperature, temperaturef for fahrenheit, frequency, voltage or fan, units will be C, F, Hz, V or RPM accordingly)
               SUBCLASS: IF IT'S AN ASUS PLEASE CHECK THE NAME FOR THE SENSOR ON IPMITOOL AND PUT IT HERE, for example Mb Temp
               VALUE: SDR VALUE 
 
