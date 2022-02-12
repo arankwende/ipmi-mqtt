@@ -113,6 +113,7 @@ def main():
             mqtt_payload = json.dumps(mqtt_payload)  
             client.connect(mqtt_ip, 1883, 60)
             client.publish(server_mqtt_config_topic, str(mqtt_payload))
+            client.disconnect
             server_number = server_number + 1
     except Exception as exception:
         print(f"There was an error sending your device configuration.The error is: {exception}")
@@ -143,7 +144,8 @@ def main():
                 mqtt_payload = {"device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number], "Unit of Measurement" : unit, "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
                 mqtt_payload = json.dumps(mqtt_payload)  
                 client.connect(mqtt_ip, 1883, 60)
-                client.publish(server_mqtt_config_topic, str(mqtt_payload)) 
+                client.publish(server_mqtt_config_topic, str(mqtt_payload))
+                client.disconnect
                 sdr_number = sdr_number + 1
             server_number = server_number + 1 
     except Exception as exception:
@@ -174,6 +176,7 @@ def main():
                         power_states[guid_list[server_number]] = server_power_state #I use the GUIDs as key with the server's power state as output
                         client.connect(mqtt_ip, 1883, 60)
                         client.publish(server_mqtt_topic, server_power_state)
+                        client.disconnect
                         server_number = server_number + 1
             except Exception as exception:
                 print(f"There is an error in your power sensor collection. The error is the following: {exception}")
@@ -243,6 +246,7 @@ def main():
                             server_mqtt_state_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "state"     
                             client.connect(mqtt_ip, 1883, 60)
                             client.publish(server_mqtt_state_topic, sdr_value)
+                            client.disconnect
                             sdr_number = sdr_number + 1
                         sdr_states[guid_list[server_number]] = sdr_server_dict
                         server_number = server_number + 1 
