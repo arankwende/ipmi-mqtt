@@ -202,6 +202,7 @@ def main():
                         sdr_list = server['SDRS']
                         sdr_server_dict = {} # I create a dictionary with all of the servers values
                         sdr_number = 0
+                        sdr_sensor_mqtt_dict = {}
                         for e in sdr_list:                        
                             current_sdr = sdr_list[sdr_number]
                             sdr_entity = current_sdr['VALUE']
@@ -250,11 +251,14 @@ def main():
                             sdr_topic = sdr_type
                             sdr_server_dict[sdr_type] = sdr_value
                             server_mqtt_state_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "state"     
-                            client.connect(mqtt_ip, 1883, 60)
-                            client.publish(server_mqtt_state_topic, sdr_value)
-                            client.disconnect
+                            sdr_sensor_mqtt_dict[server_mqtt_state_topic] = sdr_value
                             sdr_number = sdr_number + 1
                         sdr_states[guid_list[server_number]] = sdr_server_dict
+                        client.connect(mqtt_ip, 1883, 60)    
+                        for x, y in sdr_sensor_mqtt_dict.items():
+                            
+                                client.publish(x,y)
+                        client.disconnect                        
                         server_number = server_number + 1 
             except Exception as exception:
                 print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
