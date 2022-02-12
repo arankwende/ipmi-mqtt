@@ -108,9 +108,11 @@ def main():
         for i in server_config:
             server = server_config[server_number]
             server_nodename = server['IPMI_NODENAME']
+            server_identifier = [guid_list[server_number]]
+            device_mqtt_config = {"identifiers" : server_identifier, "configuration_url" : "http://" + server['IPMI_IP'], "manufacturer" : server['BRAND'], "name" : server_nodename}
             server_mqtt_config_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "config"
             server_mqtt_state_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "state"
-            mqtt_payload = {"device_class" : "power", "name" : server_nodename + " " + power_topic , "unique_id" : guid_list[server_number], "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
+            mqtt_payload = {"device" : device_mqtt_config, "device_class" : "power", "name" : server_nodename + " " + power_topic , "unique_id" : guid_list[server_number] + "_power_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
             mqtt_payload = json.dumps(mqtt_payload)  
             power_payload[mqtt_payload] = server_mqtt_config_topic
             server_number = server_number + 1
@@ -128,24 +130,34 @@ def main():
             server = server_config[server_number]
             server_nodename = server['IPMI_NODENAME']
             sdr_list = server['SDRS']
-            sdr_payload = {}          
+            sdr_payload = {}       
+            device_mqtt_config = {"identifiers" : server_identifier, "configuration_url" : "http://" + server['IPMI_IP'], "manufacturer" : server['BRAND'], "name" : server_nodename}      
             for e in sdr_list:
                 current_sdr = sdr_list[sdr_number]
                 sdr_type = current_sdr['SDR_TYPE']
                 sdr_class = current_sdr['SDR_CLASS']
                 sdr_topic = sdr_topic_types[sdr_type]
+                server_mqtt_config_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "config"
+                server_mqtt_state_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "state" 
                 if sdr_class == 'temperature':
                     unit = "°C"
-                elif sdr_class == 'fan':
-                    unit = "rpm"
+                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+                elif sdr_class == 'temperaturef':
+                    unit = "°F"
+                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
                 elif sdr_class == 'voltage':
                     unit = "V"
+                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }
+                elif sdr_class == 'fan':
+                    unit = "RPM"
+                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : 'frequency', "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }                    
+                elif sdr_class == 'frequency':
+                    unit = "Hz"
+                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), 'unit_of_meas' : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+
                 else:
                     print("no unit defined for this type")
-                    unit = ""
-                server_mqtt_config_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "config"
-                server_mqtt_state_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "state"     
-                mqtt_payload = {"device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + sdr_number, "Unit of Measurement" : unit, "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
+                    mqtt_payload = {"device" : device_mqtt_config,  "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number),  "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
                 mqtt_payload = json.dumps(mqtt_payload)  
                 sdr_payload[server_mqtt_config_topic] =  mqtt_payload
                 sdr_number = sdr_number + 1
@@ -221,11 +233,18 @@ def main():
                                     sdr_value = server_sdr_values[4]
                                     sdr_value = sdr_value[:6]
                                     sdr_value = sdr_value.strip()
+       #                             sdr_value = int(sdr_value)/60
+                                elif current_sdr['SDR_CLASS'] == 'frequency':
+                                    sdr_value = server_sdr_values[4]
+                                    sdr_value = sdr_value[:6]
+                                    sdr_value = sdr_value.strip()
+                                    sdr_value = int(sdr_value)/60
                                 elif current_sdr['SDR_CLASS'] == 'voltage':
                                     sdr_value = server_sdr_values[4]
                                     sdr_value = sdr_value[:6]
                                     sdr_value = sdr_value.strip()
                                 else:
+                                    sdr_value = server_sdr_values[4]
                                     print("The SDR class is not defined so we're gonna take the complete information from the column.")
                             elif server ['BRAND'] == 'ASUS':
                                 sdr_subclass = current_sdr['SUBCLASS']
@@ -240,11 +259,17 @@ def main():
                                     sdr_value = server_sdr_values[4]
                                     sdr_value = sdr_value[:6]
                                     sdr_value = sdr_value.strip()
+                                elif current_sdr['SDR_CLASS'] == 'frequency':
+                                    sdr_value = server_sdr_values[4]
+                                    sdr_value = sdr_value[:6]
+                                    sdr_value = sdr_value.strip()
+                                    sdr_value = int(sdr_value)/60
                                 elif current_sdr['SDR_CLASS'] == 'voltage':
                                     sdr_value = server_sdr_values[4]
                                     sdr_value = sdr_value[:6]
                                     sdr_value = sdr_value.strip()
                                 else:
+                                    sdr_value = server_sdr_values[4]
                                     print("The SDR class is not defined so we're gonna take the complete information from the column.")
                             if sdr_value == 'No' or sdr_value == 'Di':
                                 sdr_value = ""
