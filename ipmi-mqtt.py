@@ -78,10 +78,15 @@ def main():
     # The callback for when a PUBLISH message is received from the server.
     def on_message(client, userdata, msg):
         print(msg.topic+" "+str(msg.payload))
+    
+    def on_publish(client, userdata,mid):
+        print("the published message is:" + str(y))
+
     #MQTT Config
     client = mqtt.Client("ipmi-mqtt-server")
     client.on_connect = on_connect
     client.on_message = on_message
+    client.on_publish= on_publish
     client.username_pw_set(mqtt_user, password=mqtt_pass)
     #Get GUID for each server
     try:
@@ -118,7 +123,7 @@ def main():
             server_number = server_number + 1
         client.connect(mqtt_ip, 1883, 60)
         for x, y in power_payload.items():
-                client.publish(y, str(x))
+                client.publish(y, str(x)).wait_for_publish
         client.disconnect
     except Exception as exception:
         print(f"There was an error sending your device configuration.The error is: {exception}")
@@ -282,7 +287,7 @@ def main():
                         client.connect(mqtt_ip, 1883, 60)    
                         for x, y in sdr_sensor_mqtt_dict.items():
                             
-                                client.publish(x,y)
+                                client.publish(x,str(y))
                         client.disconnect                        
                         server_number = server_number + 1 
             except Exception as exception:
