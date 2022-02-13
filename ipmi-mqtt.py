@@ -124,9 +124,9 @@ def main():
 
         for x, y in power_payload.items():
                 client.connect(mqtt_ip, 1883, 60)
-                client_publisher = client.publish(y, str(x), qos=1)
-                client_publisher.wait_for_publish
+                client.publish(y, str(x), qos=1)
                 client.disconnect
+                time.sleep(5)
     except Exception as exception:
         print(f"There was an error sending your device configuration.The error is: {exception}")
     # First run Sensor initialization
@@ -136,6 +136,7 @@ def main():
             sdr_number = 0
             server = server_config[server_number]
             server_nodename = server['IPMI_NODENAME']
+            server_identifier = [guid_list[server_number]]
             sdr_list = server['SDRS']
             sdr_payload = {}       
             device_mqtt_config = {"identifiers" : server_identifier, "configuration_url" : "http://" + server['IPMI_IP'], "manufacturer" : server['BRAND'], "name" : server_nodename}      
@@ -174,6 +175,7 @@ def main():
                 client.connect(mqtt_ip, 1883, 60)
                 client.publish(x, str(y), qos=1).wait_for_publish
                 client.disconnect
+                time.sleep(5)
     except Exception as exception:
         print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
     if getattr(args,'i'):
@@ -203,6 +205,7 @@ def main():
                         client.connect(mqtt_ip, 1883, 60)
                         client.publish(server_mqtt_topic, server_power_state, qos=2).wait_for_publish
                         client.disconnect
+                        time.sleep(5)
                         server_number = server_number + 1
             except Exception as exception:
                 print(f"There is an error in your power sensor collection. The error is the following: {exception}")
@@ -291,7 +294,8 @@ def main():
                         for x, y in sdr_sensor_mqtt_dict.items():
                                 client.connect(mqtt_ip, 1883, 60) 
                                 client.publish(x,str(y), qos=1).wait_for_publish
-                                client.disconnect                        
+                                client.disconnect
+                                time.sleep(5)                        
                         server_number = server_number + 1 
             except Exception as exception:
                 print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
