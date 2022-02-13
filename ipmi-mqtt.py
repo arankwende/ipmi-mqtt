@@ -106,84 +106,84 @@ def main():
             server_number = server_number + 1   
     except Exception as exception:
         print(f"There is an error generating your server's guid. The error is the following: {exception}")
+    while(True):
         #First run - power device initialization on HA
-    try:    
-        server_number = 0
-        power_payload = {}
-        for i in server_config:
-            server = server_config[server_number]
-            server_nodename = server['IPMI_NODENAME']
-            server_identifier = [guid_list[server_number]]
-            device_mqtt_config = {"identifiers" : server_identifier, "configuration_url" : "http://" + server['IPMI_IP'], "manufacturer" : server['BRAND'], "name" : server_nodename}
-            server_mqtt_config_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "config"
-            server_mqtt_state_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "state"
-            mqtt_payload = {"device" : device_mqtt_config, "device_class" : "power", "name" : server_nodename + " " + power_topic , "unique_id" : guid_list[server_number] + "_power_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
-            mqtt_payload = json.dumps(mqtt_payload)  
-            power_payload[mqtt_payload] = server_mqtt_config_topic
-            server_number = server_number + 1
-
-        for x, y in power_payload.items():
-                client.connect(mqtt_ip, 1883, 60)
-                client.publish(y, str(x), qos=1)
-                client.disconnect
-                time.sleep(5)
-    except Exception as exception:
-        print(f"There was an error sending your device configuration.The error is: {exception}")
-    # First run Sensor initialization
-    try:    
-        server_number = 0
-        for i in server_config:
-            sdr_number = 0
-            server = server_config[server_number]
-            server_nodename = server['IPMI_NODENAME']
-            server_identifier = [guid_list[server_number]]
-            sdr_list = server['SDRS']
-            sdr_payload = {}       
-            device_mqtt_config = {"identifiers" : server_identifier, "configuration_url" : "http://" + server['IPMI_IP'], "manufacturer" : server['BRAND'], "name" : server_nodename}      
-            for e in sdr_list:
-                current_sdr = sdr_list[sdr_number]
-                sdr_type = current_sdr['SDR_TYPE']
-                sdr_class = current_sdr['SDR_CLASS']
-                sdr_topic = sdr_topic_types[sdr_type]
-                server_mqtt_config_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "config"
-                server_mqtt_state_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "state" 
-                if sdr_class == 'temperature':
-                    unit = "°C"
-                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
-                elif sdr_class == 'temperaturef':
-                    unit = "°F"
-                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
-                elif sdr_class == 'voltage':
-                    unit = "V"
-                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }
-                elif sdr_class == 'fan':
-                    unit = "RPM"
-                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : 'frequency', "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }                    
-                elif sdr_class == 'frequency':
-                    unit = "Hz"
-                    mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), 'unit_of_meas' : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
-
-                else:
-                    print("no unit defined for this type")
-                    mqtt_payload = {"device" : device_mqtt_config,  "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number),  "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+        try:    
+            server_number = 0
+            power_payload = {}
+            for i in server_config:
+                server = server_config[server_number]
+                server_nodename = server['IPMI_NODENAME']
+                server_identifier = [guid_list[server_number]]
+                device_mqtt_config = {"identifiers" : server_identifier, "configuration_url" : "http://" + server['IPMI_IP'], "manufacturer" : server['BRAND'], "name" : server_nodename}
+                server_mqtt_config_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "config"
+                server_mqtt_state_topic = ha_binary_topic + "/" + guid_list[server_number] + "_" + power_topic + "/" + "state"
+                mqtt_payload = {"device" : device_mqtt_config, "device_class" : "power", "name" : server_nodename + " " + power_topic , "unique_id" : guid_list[server_number] + "_power_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
                 mqtt_payload = json.dumps(mqtt_payload)  
-                sdr_payload[server_mqtt_config_topic] =  mqtt_payload
-                sdr_number = sdr_number + 1
-            server_number = server_number + 1 
+                power_payload[mqtt_payload] = server_mqtt_config_topic
+                server_number = server_number + 1
 
-            for x, y in sdr_payload.items():
-                client.connect(mqtt_ip, 1883, 60)
-                client.publish(x, str(y), qos=1).wait_for_publish
-                client.disconnect
-                time.sleep(5)
-    except Exception as exception:
-        print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
-    if getattr(args,'i'):
-        client.disconnect
-        quit()
-    else:
+            for x, y in power_payload.items():
+                    client.connect(mqtt_ip, 1883, 60)
+                    client.publish(y, str(x), qos=1)
+                    client.disconnect
+                    time.sleep(5)
+        except Exception as exception:
+            print(f"There was an error sending your device configuration.The error is: {exception}")
+        # First run Sensor initialization
+        try:    
+            server_number = 0
+            for i in server_config:
+                sdr_number = 0
+                server = server_config[server_number]
+                server_nodename = server['IPMI_NODENAME']
+                server_identifier = [guid_list[server_number]]
+                sdr_list = server['SDRS']
+                sdr_payload = {}       
+                device_mqtt_config = {"identifiers" : server_identifier, "configuration_url" : "http://" + server['IPMI_IP'], "manufacturer" : server['BRAND'], "name" : server_nodename}      
+                for e in sdr_list:
+                    current_sdr = sdr_list[sdr_number]
+                    sdr_type = current_sdr['SDR_TYPE']
+                    sdr_class = current_sdr['SDR_CLASS']
+                    sdr_topic = sdr_topic_types[sdr_type]
+                    server_mqtt_config_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "config"
+                    server_mqtt_state_topic = ha_sensor_topic + "/" + guid_list[server_number] + "_" + sdr_topic + "/" + "state" 
+                    if sdr_class == 'temperature':
+                        unit = "°C"
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+                    elif sdr_class == 'temperaturef':
+                        unit = "°F"
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+                    elif sdr_class == 'voltage':
+                        unit = "V"
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }
+                    elif sdr_class == 'fan':
+                        unit = "RPM"
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : 'frequency', "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }                    
+                    elif sdr_class == 'frequency':
+                        unit = "Hz"
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number), 'unit_of_meas' : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+
+                    else:
+                        print("no unit defined for this type")
+                        mqtt_payload = {"device" : device_mqtt_config,  "name" : server_nodename + " " + sdr_topic , "unique_id" : guid_list[server_number] + "_sdr" + str(sdr_number),  "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+                    mqtt_payload = json.dumps(mqtt_payload)  
+                    sdr_payload[server_mqtt_config_topic] =  mqtt_payload
+                    sdr_number = sdr_number + 1
+                server_number = server_number + 1 
+
+                for x, y in sdr_payload.items():
+                    client.connect(mqtt_ip, 1883, 60)
+                    client.publish(x, str(y), qos=1).wait_for_publish
+                    client.disconnect
+                    time.sleep(5)
+        except Exception as exception:
+            print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
+        if getattr(args,'i'):
+            client.disconnect
+            quit()
+        else:
         #Sensor data gathering
-        while(True):
             # Get Power data for each server if power topic is declared
             try:
                 if 'POWER' not in topic_dict:
@@ -299,12 +299,13 @@ def main():
                         server_number = server_number + 1 
             except Exception as exception:
                 print(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
-
             client.disconnect
             if period == 0:  #If period set to 0, the script ends.
                 quit()
             else:
                 time.sleep(period)
+
+
 configuration = open(sys.path[0] + '/config.yaml', 'r')
 config = yaml.safe_load(configuration)
 if getattr(args,'d'):
