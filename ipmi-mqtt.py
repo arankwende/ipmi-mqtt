@@ -203,7 +203,7 @@ def main():
                         server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
                         power_states[guid_list[server_number]] = server_power_state #I use the GUIDs as key with the server's power state as output
                         client.connect(mqtt_ip, 1883, 60)
-                        client.publish(server_mqtt_topic, server_power_state, qos=2).wait_for_publish
+                        client.publish(server_mqtt_topic, server_power_state, qos=1)
                         client.disconnect
                         time.sleep(5)
                         server_number = server_number + 1
