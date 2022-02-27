@@ -334,10 +334,13 @@ def main():
 
 
 
-config_dir = os.path.dirname(os.path.realpath(__file__)) 
-configuration = open(os.path.join(config_dir, 'config.yaml'), 'r')
-#configuration = open(sys.path[0] + '/config.yaml', 'r')
-config = yaml.safe_load(configuration)
+try
+    config_dir = os.path.dirname(os.path.realpath(__file__)) 
+    configuration = open(os.path.join(config_dir, 'config.yaml'), 'r')
+    #configuration = open(sys.path[0] + '/config.yaml', 'r')
+    config = yaml.safe_load(configuration)
+except Exception as exception:
+    logging.critical(f"There's an error accessing your config.yml file, the error is the following: {exception}")
 
 if getattr(args,'d'):
     context = daemon.DaemonContext(files_preserve = [configuration])
