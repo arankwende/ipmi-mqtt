@@ -28,13 +28,16 @@ logging.basicConfig(
         handlers=[handlers.RotatingFileHandler(log_fname, maxBytes=10000000, backupCount=3)],
         level=logging.INFO,
         format= formatter,
-        datefmt='%Y-%m-%d-%H:%M:%S', 
-        mode = 'w')
+        datefmt='%Y-%m-%d-%H:%M:%S' 
+        )
 
 logger = logging.getLogger()
 
 
 def main():
+
+
+    
     try:
         #Here I load yaml configuration files and create variables for the elements in the yaml
             try:
@@ -335,6 +338,7 @@ config_dir = os.path.dirname(os.path.realpath(__file__))
 configuration = open(os.path.join(config_dir, 'config.yaml'), 'r')
 #configuration = open(sys.path[0] + '/config.yaml', 'r')
 config = yaml.safe_load(configuration)
+
 if getattr(args,'d'):
     context = daemon.DaemonContext(files_preserve = [configuration])
     with context:
