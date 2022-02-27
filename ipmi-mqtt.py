@@ -7,7 +7,6 @@ import subprocess
 import argparse
 import paho.mqtt.client as mqtt
 import time
-import sys
 import os
 import daemon
 import logging
@@ -29,7 +28,8 @@ logging.basicConfig(
         handlers=[handlers.RotatingFileHandler(log_fname, maxBytes=10000000, backupCount=3)],
         level=logging.INFO,
         format= formatter,
-        datefmt='%Y-%m-%d-%H:%M:%S')
+        datefmt='%Y-%m-%d-%H:%M:%S', 
+        mode = 'w')
 
 logger = logging.getLogger()
 
@@ -211,17 +211,20 @@ def main():
                         server_nodename = server['IPMI_NODENAME']
                         server_ip = str(server['IPMI_IP'])
                         server_identifier = str("".join([guid_dict[server_ip]]))
-                        server_user = server['IPMI_USER']
-                        server_pass = server['IPMI_PASSWORD']
-                        server_mqtt_topic = ha_binary_topic + "/" + server_identifier + "_" + power_topic + "/" + "state"
-                        ipmi_power_command = f"ipmitool -I lanplus -L User -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power status | cut -b 18-20"
-                        ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True)
-                        server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
-                        power_states[server_identifier] = server_power_state #I use the GUIDs as key with the server's power state as output
-                        client.connect(mqtt_ip, 1883, 60)
-                        client.publish(server_mqtt_topic, server_power_state, qos=1)
-                        client.disconnect
-                        time.sleep(5)
+                        if server_identifier == "":
+                            logging.warning(f"Power sensor data collection for {server_nodename} has been skipped because no GUID was generated.")
+                        else:
+                            server_user = server['IPMI_USER']
+                            server_pass = server['IPMI_PASSWORD']
+                            server_mqtt_topic = ha_binary_topic + "/" + server_identifier + "_" + power_topic + "/" + "state"
+                            ipmi_power_command = f"ipmitool -I lanplus -L User -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power status | cut -b 18-20"
+                            ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True)
+                            server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
+                            power_states[server_identifier] = server_power_state #I use the GUIDs as key with the server's power state as output
+                            client.connect(mqtt_ip, 1883, 60)
+                            client.publish(server_mqtt_topic, server_power_state, qos=1)
+                            client.disconnect
+                            time.sleep(5)
                 logging.info(str(power_states))
             except Exception as exception:
                 logging.error(f"There is an error in your power sensor collection. The error is the following: {exception}")
@@ -238,7 +241,7 @@ def main():
                         server_ip = str(server['IPMI_IP'])
                         server_identifier = str("".join([guid_dict[server_ip]]))
                         if server_identifier == "":
-                            logging.warning(f"SDR initialization for {server_nodename} has been skipped because no GUID was generated.")
+                            logging.warning(f"SDR sensor data collection for {server_nodename} has been skipped because no GUID was generated.")
                         else:
                             server_user = str(server['IPMI_USER'])
                             server_pass = str(server['IPMI_PASSWORD'])
