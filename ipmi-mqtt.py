@@ -8,6 +8,7 @@ import argparse
 import paho.mqtt.client as mqtt
 import time
 import os
+import sys
 import daemon
 import logging
 import logging.handlers as handlers
@@ -342,7 +343,7 @@ try:
 except Exception as exception:
     logging.critical(f"There's an error accessing your config.yml file, the error is the following: {exception}")
     print("There's no config, please check logs.")
-    exit
+    sys.exit()
 
 if getattr(args,'d'):
     context = daemon.DaemonContext(files_preserve = [configuration])
