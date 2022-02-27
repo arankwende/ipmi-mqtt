@@ -334,7 +334,7 @@ def main():
 
 
 
-try
+try:
     config_dir = os.path.dirname(os.path.realpath(__file__)) 
     configuration = open(os.path.join(config_dir, 'config.yaml'), 'r')
     #configuration = open(sys.path[0] + '/config.yaml', 'r')
