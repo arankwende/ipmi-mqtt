@@ -25,7 +25,10 @@ logger.setLevel(logging.INFO)
 ## Here we define our formatter
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-logHandler = handlers.TimedRotatingFileHandler('ipmi-mqtt.log', when='H', interval=1, backupCount=2)
+log_dir = os.path.join(os.path.normpath(os.getcwd() + os.sep + os.pardir), 'ipmi-mqtt')
+log_fname = os.path.join(log_dir, 'ipmi-mqtt.log')
+
+logHandler = handlers.TimedRotatingFileHandler( log_fname, when='H', interval=1, backupCount=2)
 logHandler.setLevel(logging.INFO)
 ## Here we set our logHandler's formatter
 logHandler.setFormatter(formatter)
