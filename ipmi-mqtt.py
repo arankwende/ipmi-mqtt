@@ -341,6 +341,8 @@ try:
     config = yaml.safe_load(configuration)
 except Exception as exception:
     logging.critical(f"There's an error accessing your config.yml file, the error is the following: {exception}")
+    print("There's no config, please check logs.")
+    exit
 
 if getattr(args,'d'):
     context = daemon.DaemonContext(files_preserve = [configuration])
