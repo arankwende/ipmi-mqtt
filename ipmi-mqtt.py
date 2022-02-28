@@ -18,27 +18,29 @@ import logging.handlers as handlers
 parser = argparse.ArgumentParser(description='This is a simple python script that uses IPMITools in order to connect to your servers, review their power states and SDRs, if defined, and then send them through mqtt to an mqtt broker in order for Home Assistant to use them. In order for it to work, you must have filled your mqtt connetion information and your IPMI server connection information.')
 parser.add_argument('-i', action='store_true', help='initialization run')
 parser.add_argument('-d', action='store_true', help='run as daemon')
+parser.add_argument('-DEBUG', action='store_true', help='Add Debug messages to log.')
 args = parser.parse_args()
 
 
 #We define the logic and place where we're gonna log things
-log_dir = os.path.dirname(os.path.realpath(__file__)) 
-log_fname = os.path.join(log_dir, 'ipmi-mqtt.log')
-formatter = "[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s"
-logging.basicConfig(
-        handlers=[handlers.RotatingFileHandler(log_fname, maxBytes=10000000, backupCount=3)],
-        level=logging.INFO,
-        format= formatter,
-        datefmt='%Y-%m-%d-%H:%M:%S' 
-        )
+log_dir = os.path.dirname(os.path.realpath(__file__))  
+log_fname = os.path.join(log_dir, 'ipmi-mqtt.log') #I define a relative path for the log to be saved on the same folder as my py
+formatter = logging.Formatter("[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
+logger = logging.getLogger() # I define format and instantiate first logger
+if getattr(args,'DEBUG'):
+    logger.setLevel(logging.DEBUG)  #I create an option to run the program in debug mode and receive more information on the logs
+else:
+    logger.setLevel(logging.INFO)
+fh = handlers.RotatingFileHandler(log_fname, mode='w', maxBytes=10000000, backupCount=3) #This handler is important as I need a handler to pass to my daemon when run in daemon mode
+fh.setFormatter(formatter) 
+logger.addHandler(fh)
+if getattr(args,'DEBUG'):
+    fh.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
 
-logger = logging.getLogger()
 
-
-def main():
-
-
-    
+def main(): # Here i have the main program
     try:
         #Here I load yaml configuration files and create variables for the elements in the yaml
             try:
@@ -47,6 +49,7 @@ def main():
                 mqtt_user = mqtt_dict['MQTT_USER']
                 mqtt_pass = mqtt_dict['MQTT_PW']
                 period = mqtt_dict['TIME_PERIOD']
+                logging.debug("This is your mqqt dictionary:" + str(mqtt_dict))
                 if 'HA_BINARY' in mqtt_dict:
                     ha_binary_topic= mqtt_dict['HA_BINARY']
                 else:
@@ -65,6 +68,7 @@ def main():
                 topic_dict = config ['TOPICS']
                 if 'POWER' in topic_dict: 
                     power_topic = topic_dict['POWER']
+                    logging.debug("This is your power topic:" + str(power_topic))
                 else:
                     logging.warning('There is no power topic in your YAML file.')
 
@@ -72,6 +76,7 @@ def main():
 
                     sdr_topic_types = topic_dict['SDR_TYPES']
                     sdr_count = len(sdr_topic_types)
+                    logging.debug("This are your SDR topics:" + str(sdr_topic_types))
                 else:
                     logging.warning('There are no SDR topics in your YAML file.')
                     sdr_count = 0
@@ -125,7 +130,7 @@ def main():
                 logging.error(f"The server {server_nodename} has returned no GUID when connected through IPMI. There probably is a connection error.")
             ipmi_guid_pure = ipmi_guid_pure[15:] # I strip the sentence System GUID : 
             guid_dict[server_ip]=ipmi_guid_pure.strip() #I add this server's guid to the list on the position equal to the number of the server on the loop  
-        logging.info("The following GUIDs have been found:" + str(guid_dict))
+        logging.debug("The following GUIDs have been found:" + str(guid_dict))
     except Exception as exception:
         logging.critical(f"There is an error generating your server's guid. The error is the following: {exception}")
     
@@ -150,6 +155,9 @@ def main():
                         client.connect(mqtt_ip, 1883, 60)
                         client.publish(y, str(x), qos=1)
                         client.disconnect
+                        logging.debug("You have sent the following payload: " + str(x))
+                        logging.debug("To the topic: " + y)
+                        logging.debug("On the server with IP: " + mqtt_ip)
                         time.sleep(5)
         except Exception as exception:
             logging.critical(f"There was an error sending your device configuration.The error is: {exception}")
@@ -195,12 +203,16 @@ def main():
                     for x, y in sdr_payload.items():
                         client.connect(mqtt_ip, 1883, 60)
                         client.publish(x, str(y), qos=1).wait_for_publish
+                        logging.debug("You have sent the following payload: " + str(y))
+                        logging.debug("To the topic: " + str(x))
+                        logging.debug("On the server with IP: " + mqtt_ip)
                         client.disconnect
                         time.sleep(5)
         except Exception as exception:
             logging.error(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
         logging.info("Initialization complete.")
         if getattr(args,'i'):
+            logging.info("Started in iniatilization mode, so stopping now.")
             client.disconnect
             quit()
         else:
@@ -227,6 +239,9 @@ def main():
                             power_states[server_identifier] = server_power_state #I use the GUIDs as key with the server's power state as output
                             client.connect(mqtt_ip, 1883, 60)
                             client.publish(server_mqtt_topic, server_power_state, qos=1)
+                            logging.debug("You have sent the following payload: " + str(server_power_state))
+                            logging.debug("To the topic: " + str(server_mqtt_topic))
+                            logging.debug("On the server with IP: " + mqtt_ip)
                             client.disconnect
                             time.sleep(5)
                 logging.info(str(power_states))
@@ -321,9 +336,12 @@ def main():
                                 for x, y in sdr_sensor_mqtt_dict.items():
                                         client.connect(mqtt_ip, 1883, 60) 
                                         client.publish(x,str(y), qos=1).wait_for_publish
+                                        logging.debug("You have sent the following payload: " + str(y))
+                                        logging.debug("To the topic: " + str(x))
+                                        logging.debug("On the server with IP: " + mqtt_ip)
                                         client.disconnect
                                         time.sleep(5)                        
-                logging.info("These are the SDR States collected:" + str(sdr_states))
+                logging.debug("These are the SDR States collected:" + str(sdr_states))
             except Exception as exception:
                 logging.error(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
             client.disconnect
@@ -338,17 +356,19 @@ def main():
 try:
     config_dir = os.path.dirname(os.path.realpath(__file__)) 
     configuration = open(os.path.join(config_dir, 'config.yaml'), 'r')
+    logging.info(f"Opening the following file: {config_dir}")
     #configuration = open(sys.path[0] + '/config.yaml', 'r')
     config = yaml.safe_load(configuration)
 except Exception as exception:
     logging.critical(f"There's an error accessing your config.yml file, the error is the following: {exception}")
-    print("There's no config, please check logs.")
+    print("There's no config yaml file in the program's folder, please check the logs.")
     sys.exit()
 
 if getattr(args,'d'):
-    context = daemon.DaemonContext(files_preserve = [configuration])
+    context = daemon.DaemonContext(files_preserve = [configuration, fh.stream] )
     with context:
         main()
+
 elif __name__== '__main__':
         main()
 
