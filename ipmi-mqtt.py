@@ -358,6 +358,7 @@ def main(): # Here i have the main program
                 client.disconnect
                 quit()
             else:
+                logging.info(f"Collection complete, will wait {period} seconds to start again")
                 time.sleep(period)
 
 
