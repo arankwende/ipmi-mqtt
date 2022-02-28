@@ -13,34 +13,50 @@ import daemon
 import logging
 import logging.handlers as handlers
 
-
 #We define some arguments to be parsed as well as help messages and description for the script.
 parser = argparse.ArgumentParser(description='This is a simple python script that uses IPMITools in order to connect to your servers, review their power states and SDRs, if defined, and then send them through mqtt to an mqtt broker in order for Home Assistant to use them. In order for it to work, you must have filled your mqtt connetion information and your IPMI server connection information.')
-parser.add_argument('-i', action='store_true', help='initialization run')
-parser.add_argument('-d', action='store_true', help='run as daemon')
+parser.add_argument('-i', action='store_true', help='Run once to only create the entities in your MQTT broker (and see them in home assistant).')
+parser.add_argument('-o', action='store_true', help='Run once and quit.')
+parser.add_argument('-d', action='store_true', help='Run as a daemon.')
 parser.add_argument('-DEBUG', action='store_true', help='Add Debug messages to log.')
 args = parser.parse_args()
-
-
 #We define the logic and place where we're gonna log things
 log_dir = os.path.dirname(os.path.realpath(__file__))  
 log_fname = os.path.join(log_dir, 'ipmi-mqtt.log') #I define a relative path for the log to be saved on the same folder as my py
 formatter = logging.Formatter("[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
 logger = logging.getLogger() # I define format and instantiate first logger
+
 if getattr(args,'DEBUG'):
     logger.setLevel(logging.DEBUG)  #I create an option to run the program in debug mode and receive more information on the logs
 else:
     logger.setLevel(logging.INFO)
+
 fh = handlers.RotatingFileHandler(log_fname, mode='w', maxBytes=10000000, backupCount=3) #This handler is important as I need a handler to pass to my daemon when run in daemon mode
 fh.setFormatter(formatter) 
 logger.addHandler(fh)
-if getattr(args,'DEBUG'):
+
+if getattr(args,'DEBUG'): # I set the debug option for the handler too
     fh.setLevel(logging.DEBUG)
 else:
     logger.setLevel(logging.INFO)
 
+# Connect to MQTT funcionts - this I took directly from the paho docs.
+# The callback for when the client receives a CONNACK response from the server.
+def on_connect(client, userdata, flags, rc):
+    logger.info("Connected with result code "+str(rc))
+    # Subscribing in on_connect() means that if we lose the connection and
+    # reconnect then subscriptions will be renewed.
+    client.subscribe("$SYS/#")
+# The callback for when a PUBLISH message is received from the server.
+def on_message(client, userdata, msg):
+    logger.info(msg.topic+" "+str(msg.payload))
+
+def on_publish(client, userdata,mid):
+    logger.info("the published message id is:" + str(mid))
+
 
 def main(): # Here i have the main program
+    """Main function to run ipmi-mqtt in a loop."""
     try:
         #Here I load yaml configuration files and create variables for the elements in the yaml
             try:
@@ -90,31 +106,21 @@ def main(): # Here i have the main program
                 else:
                     server_count = len(server_config)
                     logging.info(f"You have {server_count} servers.")
+                    logging.debug(f"This is the configuration information they have: {str(server_config)}")
             except Exception as exception:
                 logging.critical(f'Your YAML is missing something in the SERVERS section. You get the following error: {exception} ')
  
     except Exception as exception:
         logging.critical(f"Please check your YAML, it might be missing some parts. The exception is {exception}")
-    # Connect to MQTT - this I took directly from the paho docs.
-    # The callback for when the client receives a CONNACK response from the server.
-    def on_connect(client, userdata, flags, rc):
-        print("Connected with result code "+str(rc))
-        # Subscribing in on_connect() means that if we lose the connection and
-        # reconnect then subscriptions will be renewed.
-        client.subscribe("$SYS/#")
-    # The callback for when a PUBLISH message is received from the server.
-    def on_message(client, userdata, msg):
-        print(msg.topic+" "+str(msg.payload))
-    
-    def on_publish(client, userdata,mid):
-        print("the published message is:" + str(y))
 
-    #MQTT Config
+
+    #MQTT Config example from PAHO Docs
     client = mqtt.Client("ipmi-mqtt-server")
     client.on_connect = on_connect
     client.on_message = on_message
     client.on_publish= on_publish
     client.username_pw_set(mqtt_user, password=mqtt_pass)
+    
     #Get GUID for each server
     try:
         guid_dict = {}
@@ -150,13 +156,13 @@ def main(): # Here i have the main program
                     server_mqtt_state_topic = ha_binary_topic + "/" + server_identifier + "_" + power_topic + "/" + "state"
                     mqtt_payload = {"device" : device_mqtt_config, "device_class" : "power", "name" : server_nodename + " " + power_topic , "unique_id" : server_identifier + "_power_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
                     mqtt_payload = json.dumps(mqtt_payload)  
-                    power_payload[mqtt_payload] = server_mqtt_config_topic
+                    power_payload[server_mqtt_config_topic] = mqtt_payload
                 for x, y in power_payload.items():
                         client.connect(mqtt_ip, 1883, 60)
-                        client.publish(y, str(x), qos=1)
+                        client.publish(str(x), str(y), qos=1)
                         client.disconnect
-                        logging.debug("You have sent the following payload: " + str(x))
-                        logging.debug("To the topic: " + y)
+                        logging.debug("You have sent the following payload: " + str(y))
+                        logging.debug("To the configuration topic: " + x)
                         logging.debug("On the server with IP: " + mqtt_ip)
                         time.sleep(5)
         except Exception as exception:
@@ -204,7 +210,7 @@ def main(): # Here i have the main program
                         client.connect(mqtt_ip, 1883, 60)
                         client.publish(x, str(y), qos=1).wait_for_publish
                         logging.debug("You have sent the following payload: " + str(y))
-                        logging.debug("To the topic: " + str(x))
+                        logging.debug("To the configuration topic: " + str(x))
                         logging.debug("On the server with IP: " + mqtt_ip)
                         client.disconnect
                         time.sleep(5)
@@ -240,7 +246,7 @@ def main(): # Here i have the main program
                             client.connect(mqtt_ip, 1883, 60)
                             client.publish(server_mqtt_topic, server_power_state, qos=1)
                             logging.debug("You have sent the following payload: " + str(server_power_state))
-                            logging.debug("To the topic: " + str(server_mqtt_topic))
+                            logging.debug("To the power state topic: " + str(server_mqtt_topic))
                             logging.debug("On the server with IP: " + mqtt_ip)
                             client.disconnect
                             time.sleep(5)
@@ -287,7 +293,6 @@ def main(): # Here i have the main program
                                             sdr_value = server_sdr_values[4]
                                             sdr_value = sdr_value[:6]
                                             sdr_value = sdr_value.strip()
-    #                                       sdr_value = int(sdr_value)/60
                                         elif current_sdr['SDR_CLASS'] == 'frequency':
                                             sdr_value = server_sdr_values[4]
                                             sdr_value = sdr_value[:6]
@@ -337,7 +342,7 @@ def main(): # Here i have the main program
                                         client.connect(mqtt_ip, 1883, 60) 
                                         client.publish(x,str(y), qos=1).wait_for_publish
                                         logging.debug("You have sent the following payload: " + str(y))
-                                        logging.debug("To the topic: " + str(x))
+                                        logging.debug("To the SDR topic: " + str(x))
                                         logging.debug("On the server with IP: " + mqtt_ip)
                                         client.disconnect
                                         time.sleep(5)                        
@@ -348,16 +353,29 @@ def main(): # Here i have the main program
             if period == 0:  #If period set to 0, the script ends.
                 logging.info("The time period in the YAML file is set to 0, so the script will end.")
                 quit()
+            elif getattr(args,'o'):
+                logging.info("Started in run once mode, so stopping now.")
+                client.disconnect
+                quit()
             else:
                 time.sleep(period)
 
 
 
-try:
+
+try: # This loads the config file
+    if getattr(args,'i'):
+        logging.info("Running with -i in initialization mode.")
+    if getattr(args,'o'):
+        logging.info("Running with -o in run once mode.")
+    if getattr(args,'d'):
+        logging.info("Running with -d in daemon mode.")
+    if getattr(args,'DEBUG'):
+        logging.info("Running with -DEBUG in DEBUG log mode.")
     config_dir = os.path.dirname(os.path.realpath(__file__)) 
-    configuration = open(os.path.join(config_dir, 'config.yaml'), 'r')
-    logging.info(f"Opening the following file: {config_dir}")
-    #configuration = open(sys.path[0] + '/config.yaml', 'r')
+    config_file = os.path.join(config_dir, 'config.yaml')
+    configuration = open(config_file, 'r')
+    logging.info(f"Opening the following file: {config_file}")
     config = yaml.safe_load(configuration)
 except Exception as exception:
     logging.critical(f"There's an error accessing your config.yml file, the error is the following: {exception}")
