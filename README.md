@@ -1,8 +1,8 @@
 # ipmi-mqtt
 Python app for IPMI states to be sent to Home Assistant via MQTT
 
-This is a simple application that will run continuosly on your server (current version must be executed each time), getting IPMI sensor data (executing IPMITOOLs trhough the shell) from one or many servers and then republishes that data to MQTT in a format that Home Assistant automatically recognizes as devices, each with its own entities and (in the future) switches for On or Off.
-The app requires:
+This is a simple application that you can either run continuously in a predefined interval, run once (-o), use just to create your entities in home assistant through mqtt (-i) or run continuously as a daemon (-d). The scripts uses ipmi-tool to get IPMI sensor data (executing IPMITOOLs through the shell) from one or many servers and then republishes that data to MQTT in a format that Home Assistant automatically recognizes as devices, each with its own entities and (in the future) switches for On or Off.
+The script requires:
 
 python and ipmitools to be installed on the server:
 ```
@@ -28,17 +28,16 @@ python-daemon:
 pip install python-daemon
 ```
 
-Then, copy this repo, complete the YAML file and rename it config.yaml, make the script executable and run it.
+Once installed, just copy this repo (you can use git clone), complete the YAML file and rename it config.yaml, make the script executable and run it.
 
-That's it. You can execute it with -i in order to just execute the config payload being sent to the MQTT topic, or -d in order to have the script run as a daemon. You can also set a time (in seconds) inside the YAML file for the script to run in a loop and get new sensor values in that time period.
+That's it. You can execute it with -i in order to just execute the config payload being sent to the MQTT topic, or -d in order to have the script run as a daemon. You can also set a time (in seconds) inside the YAML file for the script to run in a loop and get new sensor values in that time period or simply run with -o to run one time only. 
 
 
-
-All of the configuration is done via a config.yaml file, an example file is provided.
+All of the configuration is done via a config.yaml file, an example file is provided, you need to rename it to config.yml.
 
 It must contain:
 
-An Mqtt configuration with IP, user, password, the topics for sensors (the example ones are for HA to do discovery) and the time period, which is the amount of time before re-runs of the sensor data gathering, if the set to 0 the script will run just one time, otherwise it will run until killed:
+An Mqtt configuration with IP, user, password, the topics for sensors (the example ones are for HA to do discovery) and the time period, which is the amount of time before re-runs of the sensor data gathering, if set to 0 the script will not repeat itself (like with option -o), otherwise it will run until killed:
 paho-mqtt:
 ```
 MQTT:
@@ -163,6 +162,10 @@ SERVERS:
 
 
 
-After configuring this, the first time you run the script it will create the entities directly in your MQTT broker you will find them on Home Assistant in the MQTT broker's entity page (not on device, maybe in the future).
+After configuring this, the first time you run the script it will create the entities directly in your MQTT broker you will find them on Home Assistant in the MQTT broker's entity page (not on device, maybe in the future). The entities will be grouped into a each server which will appear as a device,  you can edit it to add it to an area.
 
-I'm currently working on making it run continously and subscribing to a switch entity on MQTT so it can receive switch commands from HA.
+I'm currently working on subscribing to a switch entity on MQTT so it can receive switch commands from HA and HA can turn on or off a PC through MQTT.
+
+The program generates a log that will grow to 10MiB and then cycle 2 times (that is, there will be no more than 30MiB of logs).
+
+
