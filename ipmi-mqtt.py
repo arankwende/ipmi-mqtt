@@ -31,7 +31,7 @@ if getattr(args,'DEBUG'):
 else:
     logger.setLevel(logging.INFO)
 
-fh = handlers.RotatingFileHandler(log_fname, mode='w', maxBytes=10000000, backupCount=3) #This handler is important as I need a handler to pass to my daemon when run in daemon mode
+fh = handlers.RotatingFileHandler(log_fname, mode='w', maxBytes=10000, backupCount=3) #This handler is important as I need a handler to pass to my daemon when run in daemon mode
 fh.setFormatter(formatter) 
 logger.addHandler(fh)
 
@@ -332,7 +332,7 @@ def main(): # Here i have the main program
                                             logging.info(f"The SDR class {current_sdr['SDR_CLASS']} is not defined so we're gonna take the complete information from the column.")
                                     if sdr_value == 'No' or sdr_value == 'Di':
                                         sdr_value = ""
-                                        logging.warning(f"IPMI returned an empty value for server {server_nodename}it is likely the server is OFF and so no sensor data is being collected.")
+                                        logging.warning(f"IPMI returned an empty value for server {server_nodename} it is likely the server is OFF and so no sensor data is being collected.")
                                     sdr_topic = sdr_type
                                     sdr_server_dict[sdr_type] = sdr_value
                                     server_mqtt_state_topic = ha_sensor_topic + "/" + server_identifier + "_" + sdr_topic + "/" + "state"     

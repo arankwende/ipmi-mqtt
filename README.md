@@ -6,7 +6,7 @@ The script requires:
 
 python and ipmitools to be installed on the server:
 ```
-sudo apt install python3 ipmitool
+sudo apt install python3 ipmitool python3-pip
 ```
 
 
@@ -14,7 +14,7 @@ as well as the following modules:
 
 yaml:
 ```
-pip install pyyaml
+pip install pyyaml paho-mqtt python-daemon
 ```
 
 
@@ -37,7 +37,7 @@ All of the configuration is done via a config.yaml file, an example file is prov
 
 It must contain:
 
-An Mqtt configuration with IP, user, password, the topics for sensors (the example ones are for HA to do discovery) and the time period, which is the amount of time before re-runs of the sensor data gathering, if set to 0 the script will not repeat itself (like with option -o), otherwise it will run until killed:
+An MQTT configuration with IP, user, password, the topics for sensors (the example ones are for HA to do discovery) and the time period, which is the amount of time before re-runs of the sensor data gathering, if set to 0 the script will not repeat itself (like with option -o), otherwise it will run until killed:
 paho-mqtt:
 ```
 MQTT:
