@@ -31,7 +31,7 @@ if getattr(args,'DEBUG'):
 else:
     logger.setLevel(logging.INFO)
 
-fh = handlers.RotatingFileHandler(log_fname, mode='w', maxBytes=10000, backupCount=3) #This handler is important as I need a handler to pass to my daemon when run in daemon mode
+fh = handlers.RotatingFileHandler(log_fname, mode='w', maxBytes=100000, backupCount=3) #This handler is important as I need a handler to pass to my daemon when run in daemon mode
 fh.setFormatter(formatter) 
 logger.addHandler(fh)
 
@@ -250,7 +250,7 @@ def main(): # Here i have the main program
                             logging.debug("On the server with IP: " + mqtt_ip)
                             client.disconnect
                             time.sleep(5)
-                logging.info(str(power_states))
+                logging.debug(str(power_states))
             except Exception as exception:
                 logging.error(f"There is an error in your power sensor collection. The error is the following: {exception}")
             # Get SDR DATA for each server if SDR topic is declared
