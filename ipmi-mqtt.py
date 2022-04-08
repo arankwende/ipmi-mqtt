@@ -159,7 +159,7 @@ def main(): # Here i have the main program
                     power_payload[server_mqtt_config_topic] = mqtt_payload
                 for x, y in power_payload.items():
                         client.connect(mqtt_ip, 1883, 60)
-                        client.publish(str(x), str(y), qos=1)
+                        client.publish(str(x), str(y), qos=1, retain=True)
                         client.disconnect
                         logging.debug("You have sent the following payload: " + str(y))
                         logging.debug("To the configuration topic: " + x)
@@ -208,7 +208,7 @@ def main(): # Here i have the main program
                         sdr_payload[server_mqtt_config_topic] =  mqtt_payload
                     for x, y in sdr_payload.items():
                         client.connect(mqtt_ip, 1883, 60)
-                        client.publish(x, str(y), qos=1).wait_for_publish
+                        client.publish(x, str(y), qos=1, retain=True).wait_for_publish
                         logging.debug("You have sent the following payload: " + str(y))
                         logging.debug("To the configuration topic: " + str(x))
                         logging.debug("On the server with IP: " + mqtt_ip)
@@ -244,7 +244,7 @@ def main(): # Here i have the main program
                             server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
                             power_states[server_identifier] = server_power_state #I use the GUIDs as key with the server's power state as output
                             client.connect(mqtt_ip, 1883, 60)
-                            client.publish(server_mqtt_topic, server_power_state, qos=1)
+                            client.publish(server_mqtt_topic, server_power_state, qos=1, retain=True)
                             logging.debug("You have sent the following payload: " + str(server_power_state))
                             logging.debug("To the power state topic: " + str(server_mqtt_topic))
                             logging.debug("On the server with IP: " + mqtt_ip)
@@ -340,7 +340,7 @@ def main(): # Here i have the main program
                                 sdr_states[server_identifier] = sdr_server_dict
                                 for x, y in sdr_sensor_mqtt_dict.items():
                                         client.connect(mqtt_ip, 1883, 60) 
-                                        client.publish(x,str(y), qos=1).wait_for_publish
+                                        client.publish(x,str(y), qos=1, retain=True).wait_for_publish
                                         logging.debug("You have sent the following payload: " + str(y))
                                         logging.debug("To the SDR topic: " + str(x))
                                         logging.debug("On the server with IP: " + mqtt_ip)
