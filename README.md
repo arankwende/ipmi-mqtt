@@ -12,20 +12,9 @@ sudo apt install python3 ipmitool python3-pip
 
 as well as the following modules:
 
-yaml:
+yaml, paho-mqtt and python-daemon:
 ```
 pip install pyyaml paho-mqtt python-daemon
-```
-
-
-paho-mqtt:
-```
-pip install paho-mqtt
-```
-
-python-daemon:
-```
-pip install python-daemon
 ```
 
 Once installed, just copy this repo (you can use git clone), complete the YAML file and rename it config.yaml, make the script executable and run it.
