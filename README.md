@@ -11,7 +11,10 @@ sudo apt install python3 ipmitool python3-pip
 ```
 for freebsd (pkg):
 
+```
 pkg install python3 ipmitool py38-pip
+```
+
 
 as well as the following modules with pip:
 
