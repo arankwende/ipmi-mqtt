@@ -1,0 +1,13 @@
+[Unit]
+Description=IPMI mqtt Service
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+User=ipmimqtt
+ExecStart=/usr/bin/python3 /usr/local/ipmi-mqtt/ipmi-mqtt.py -d
+
+[Install]
+WantedBy=multi-user.target
