@@ -159,7 +159,7 @@ SERVERS:
 
 
 
-After configuring this, the first time you run the script it will create the entities directly in your MQTT broker you will find them on Home Assistant in the MQTT broker's entity page (not on device, maybe in the future). The entities will be grouped into a each server which will appear as a device,  you can edit it to add it to an area.
+After configuring this, the first time you run the script it will create the devices and its entities directly in your MQTT broker you will find them on Home Assistant in the MQTT broker's entity page as well as separate devices(one per server). The entities are grouped into a each server which will appear as a device,  you can edit it to add it to an area.
 
 I'm currently working on subscribing to a switch entity on MQTT so it can receive switch commands from HA and HA can turn on or off a PC through MQTT.
 
