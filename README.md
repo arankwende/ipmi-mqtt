@@ -4,28 +4,23 @@ Python app for IPMI states to be sent to Home Assistant via MQTT
 This is a simple application that you can either run continuously in a predefined interval, run once (-o), use just to create your entities in home assistant through mqtt (-i) or run continuously as a daemon (-d). The scripts uses ipmi-tool to get IPMI sensor data (executing IPMITOOLs through the shell) from one or many servers and then republishes that data to MQTT in a format that Home Assistant automatically recognizes as devices, each with its own entities and (in the future) switches for On or Off.
 The script requires:
 
-python and ipmitools to be installed on the server:
+python and ipmitools to be installed on the server 
+for linux (apt):
 ```
 sudo apt install python3 ipmitool python3-pip
 ```
+for freebsd (pkg):
+
+```
+pkg install python3 ipmitool py38-pip
+```
 
 
-as well as the following modules:
+as well as the following modules with pip:
 
-yaml:
+yaml, paho-mqtt and python-daemon:
 ```
 pip install pyyaml paho-mqtt python-daemon
-```
-
-
-paho-mqtt:
-```
-pip install paho-mqtt
-```
-
-python-daemon:
-```
-pip install python-daemon
 ```
 
 Once installed, just copy this repo (you can use git clone), complete the YAML file and rename it config.yaml, make the script executable and run it.
