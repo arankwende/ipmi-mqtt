@@ -1,0 +1,28 @@
+#!/bin/sh
+
+. /etc/rc.subr
+
+#General info
+name="ipmimqtt"
+program_name="ipmi-mqtt.py"
+
+#RC Config variable setup
+load_rc_config $name      
+: ${ipmimqtt_enable="NO"}  # Default not enabled
+: ${ipmimqtt_localuser="ipmimqtt"} # Default user to run ipmi-mqtt
+
+# OS Setup
+rcvar=ipmimqtt_enable
+pidfile="/var/run/${program_name}.pid"
+
+
+# Command Setup
+exec_path="python3 /usr/local/share/ipmi-mqtt/${program_name}" # path to ipmi-mqtt.py, change if you change it
+output_file="/var/log/${program_name}.log" # path to daemon log
+
+# Command
+command="/usr/sbin/daemon"
+command_args="-r -u ${ipmimqtt_localuser} -o ${output_file} -p ${pidfile} ${exec_path}"
+
+load_rc_config ${name}
+run_rc_command "$1"
