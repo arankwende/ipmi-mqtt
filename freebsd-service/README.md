@@ -1,4 +1,4 @@
-# ipmi-mqtt
+# FreeBSD service for ipmi-mqtt
 This folder contains a script to run on Freebsd directly as an rc.d service using the freebsd daemon.
 The following steps will help you set it up on freebsd, specially in a jail:
 First install some utilities
