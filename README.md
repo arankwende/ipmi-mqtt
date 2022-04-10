@@ -12,15 +12,14 @@ sudo apt install python3 ipmitool python3-pip
 for freebsd (pkg):
 
 ```
-pkg install python3 ipmitool py38-pip
+pkg install python3 ipmitool
 ```
 
+as well as the following modules:
 
-as well as the following modules with pip:
-
-yaml, paho-mqtt and python-daemon:
+yaml, paho-mqtt and python-daemon (which are all on ports):
 ```
-pip install pyyaml paho-mqtt python-daemon
+pkg install py38-daemon py38-yaml py38-paho-mqttp
 ```
 
 Once installed, just copy this repo (you can use git clone), complete the YAML file and rename it config.yaml, make the script executable and run it.
