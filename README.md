@@ -3,7 +3,7 @@ Python app for IPMI states to be sent to Home Assistant via MQTT
 
 This is a simple application that you can either run continuously in a predefined interval, run once (-o), use just to create your entities in home assistant through mqtt (-i) or run continuously as a daemon (-d). The scripts uses ipmi-tool to get IPMI sensor data (executing IPMITOOLs through the shell) from one or many servers and then republishes that data to MQTT in a format that Home Assistant automatically recognizes as devices, each with its own entities and (in the future) switches for On or Off.
 
-If you want to use it as a service in FreeBSD you can check the readme on the FreeBSD service folder in the repo and follow those instructions too.
+If you want to use it as a service in linux or FreeBSD you can check the readme on the FreeBSD-service folder or the systemd-service folder in the repo and follow those instructions too.
 
 The script requires:
 

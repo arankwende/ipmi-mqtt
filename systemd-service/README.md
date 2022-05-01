@@ -1,4 +1,4 @@
-# ipmi-mqtt
+# systemd service ipmi-mqtt
 This folder contains a service script to run ipmi-mqtt as a service in linux with systemd.
 The following steps will help you set it up in linux, specially in ubuntu, you should have installed all the dependencias and modules first (as outlined on the repos main readme):
 
