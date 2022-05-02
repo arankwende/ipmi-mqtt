@@ -12,14 +12,12 @@ import sys
 import daemon
 import logging
 import logging.handlers as handlers
-
-
 # First we define all the functions
 # YAML config loading function
 def load_config():
     try:
-        config_dir = os.path.dirname(os.path.realpath(__file__)) 
-        config_file = os.path.join(config_dir, 'config.yaml')
+        config_dir = os.path.dirname(os.path.realpath(__file__))
+        config_file = os.path.join(config_dir, 'config/config.yaml')
         configuration = open(config_file, 'r')
         logging.info(f"Opening the following file: {config_file}")
         config = yaml.safe_load(configuration)
@@ -34,7 +32,7 @@ def on_connect(client, userdata, flags, rc):
     logging.info("Connected with result code "+str(rc))
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-#    client.subscribe("$SYS/#")
+    client.subscribe("$SYS/#")
 # The callback for when a PUBLISH message is received from the server.
 def on_publish(client, userdata, mid):
     logging.debug("the published message is:" + str(userdata))
@@ -46,7 +44,6 @@ def mqtt_publish_dict(mqtt_dict, client, mqtt_ip):
         logging.debug("You have sent the following payload: " + str(y))
         logging.debug("To the configuration topic: " + str(x))
         logging.debug("On the server with IP: " + mqtt_ip)
-#        time.sleep(5)
 def get_mqtt(config):
     try:
         mqtt_dict = config['MQTT']
@@ -395,7 +392,7 @@ def main(): # Here i have the main program
     """Main function to run ipmi-mqtt in a loop."""
     try:
         #Here I load yaml configuration files and create variables for the elements in the yaml
-            global config, configuration 
+            global config, configuration, server_config
             config, configuration = load_config()
             try:
                 server_config = config['SERVERS']
@@ -407,31 +404,27 @@ def main(): # Here i have the main program
                     logging.debug(f"This is the configuration information they have: {str(server_config)}")
             except Exception as exception:
                 logging.critical(f'Your YAML is missing something in the SERVERS section. You get the following error: {exception} ')
- 
     except Exception as exception:
         logging.critical(f"Please check your YAML, it might be missing some parts. The exception is {exception}")
     #Create config variables
-    global mqtt_ip, mqtt_user, mqtt_pass, period
+    global mqtt_ip, mqtt_user, mqtt_pass, period, guid_dict, server_ip_dict
     mqtt_ip, mqtt_user, mqtt_pass, period, ha_binary_topic, ha_sensor_topic, ha_switch_topic = get_mqtt(config)
-    #MQTT Config example from PAHO Docs
-
-    client = mqtt.Client("ipmi-mqtt-server")
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.on_publish= on_publish
-    client.username_pw_set(mqtt_user, password=mqtt_pass)
-    client.connect(mqtt_ip, 1883, 60)
-    client.loop_start()
-    #Get GUID for each server
-
+    #Get GUID for each server through IPMI
     guid_dict=get_guid(server_config)
-
-
-
     #GET SERVER IP DICT for each server based on GUID
     server_ip_dict=get_server_ip_dict(server_config)
+    #I first copy methods according to Paho MQTT documentation, then I set the mqtt user and password (which is why I needed first the get_mqtt method, then I start the connection and finnally I create the network loop.)
+    try:
+        client = mqtt.Client("ipmi-mqtt-server")
+        client.on_connect = on_connect
+        client.on_message = on_message
+        client.on_publish= on_publish
+        client.username_pw_set(mqtt_user, password=mqtt_pass)
+        client.connect(mqtt_ip, 1883, 60)
+        client.loop_start()
+    except Exception as exception:
+        logging.critical(f"There seems to be a problem connecting to the mqtt server. The exception is {exception}")
     logging.debug(f"This is the server information organized by IP: {str(server_ip_dict)}")
-
     topic_dict, power_topic, switch_topic, sdr_topic_types, sdr_count = get_topics(config)
     logging.debug(f"You have {str(sdr_count)} SDRs.")
     #First run - power device initialization on HA
@@ -450,11 +443,9 @@ def main(): # Here i have the main program
         #I subscribe for switch topics on the mqtt server
         switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
         while(True):
-
             #Sensor data gathering
                 # I get the power data from each server, one by one (following guid_dict order) and then send that data through mqtt to the mqtt server
                 get_power_data(topic_dict, server_config, guid_dict, ha_binary_topic, power_topic, client, mqtt_ip)
-
                 # Get SDR DATA for each server if SDR topic is declared
                 try:
                     if 'SDR_TYPES' not in topic_dict:
@@ -466,7 +457,6 @@ def main(): # Here i have the main program
                 except Exception as exception:
                     logging.error(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
     #            client.disconnect
-
                 if period == 0:  #If period set to 0, the script ends.
                     logging.info("The time period in the YAML file is set to 0, so the script will end.")
                     client.loop_stop()
@@ -479,7 +469,6 @@ def main(): # Here i have the main program
                 else:
                     logging.info(f"Collection complete, will wait {period} seconds to start again")
                     time.sleep(period)
-
 #Now, to the code that runs
 #We define some arguments to be parsed as well as help messages and description for the script.
 parser = argparse.ArgumentParser(description='This is a simple python script that uses IPMITools in order to connect to your servers, review their power states and SDRs, if defined, and then send them through mqtt to an mqtt broker in order for Home Assistant to use them. In order for it to work, you must have filled your mqtt connetion information and your IPMI server connection information.')
@@ -491,7 +480,7 @@ parser.add_argument('-DEBUG', action='store_true', help='Add Debug messages to l
 args = parser.parse_args()
 #We define the logic and place where we're gonna log things
 log_dir = os.path.dirname(os.path.realpath(__file__))  
-log_fname = os.path.join(log_dir, 'ipmi-mqtt.log') #I define a relative path for the log to be saved on the same folder as my py
+log_fname = os.path.join(log_dir, 'config/ipmi-mqtt.log') #I define a relative path for the log to be saved on the same folder as my py
 formatter = logging.Formatter("[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
 logger = logging.getLogger() # I define format and instantiate first logger
 
@@ -535,6 +524,8 @@ elif getattr(args,'s'):
     client.on_publish= on_publish
     client.username_pw_set(mqtt_user, password=mqtt_pass)
     guid_dict=get_guid(server_config)
+    client.connect(mqtt_ip, 1883, 60)
+    client.loop_start()
     switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
 elif __name__== '__main__':
         main()

@@ -12,6 +12,13 @@ for linux (apt):
 ```
 sudo apt install python3 ipmitool python3-pip
 ```
+as well as the following modules with pip:
+
+yaml, paho-mqtt and python-daemon (which are all on ports):
+```
+sudo pip install yaml paho-mqtt python-daemon
+```
+
 for freebsd (pkg):
 
 ```
@@ -156,8 +163,6 @@ SERVERS:
 
 
 ```
-
-
 
 After configuring this, the first time you run the script it will create the devices and its entities directly in your MQTT broker you will find them on Home Assistant in the MQTT broker's entity page as well as separate devices(one per server). The entities are grouped into a each server which will appear as a device,  you can edit it to add it to an area.
 
