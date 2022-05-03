@@ -21,9 +21,15 @@ Next, we will clone this repo into the folder /usr/local/share/ipmi-mqtt
 git clone https://github.com/arankwende/ipmi-mqtt /usr/local/share/ipmi-mqtt
 ```
 
+And make the user we created (in this example ipmimqtt) owner of the folder (so that it can write the logs):
+
+```
+chown -R ipmimqtt /usr/local/share/ipmi-mqtt
+```
+
 We need to create the config.yaml file and populate it as specified on this repo:
 ```
-nano /usr/local/share/ipmi-mqtt/config.yaml
+nano /usr/local/share/ipmi-mqtt/config/config.yaml
 
 ```
 
@@ -54,12 +60,11 @@ If we created a user different from ipmimqtt, we need to modify rc.config:
 ```
 nano /etc/rc.config
 ```
-And add the following line:
+And add the following line (for the user we created who will be executing the program):
 
 ```
 ipmimqtt_localuser="USER"
 ```
-
 
 We can now test it:
 ```
@@ -69,9 +74,14 @@ it should start and we can see if the processes are running:
 ```
 ps -aux
 ```
-If there is any trouble, daemon should create a log we can consult:
+If there is any trouble, we can check the daemon's log here:
 ```
 /var/log/ipmi-mqtt.py.log
+```
+And the program's log here:
+
+```
+/usr/local/share/ipmi-mqtt/config/config.log
 ```
 
 Once everything is working, we can enable the service in order for it to work on reboot:
