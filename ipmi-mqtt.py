@@ -36,48 +36,51 @@ def on_connect(client, userdata, flags, rc):
 # The callback for when a PUBLISH message is received from the server.
 #I create the on_message function so that it generates 
 def on_message(client, userdata, msg):
-    logger.info(msg.topic+" "+str(msg.payload))
-    server_config = config['SERVERS']
-    #guid_dict, complete_guid_dict=get_guid(server_config)
-    logging.debug("You have the following message:"+ msg.topic+" "+str(msg.payload))
-    if str(msg.payload.decode("utf-8")) == "on":
-        server_guid = msg.topic.replace("homeassistant/switch/", "")
-        server_guid = server_guid.replace("_server_switch/set", "")
-        server_dict = complete_guid_dict[server_guid]
-        server_ip = server_dict["server_ip"]
-        server_user = server_dict["server_user"]
-        server_pass = server_dict["server_pass"]
-        ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power on"
-        logging.debug(ipmi_power_command)
-        subprocess.run(ipmi_power_command, shell=True, capture_output=True)
-        clean_topic_dict = {msg.topic: ""}
-        mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
-        time.sleep(10)
-        get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
-    elif str(msg.payload.decode("utf-8")) == "off":
-        server_guid = msg.topic.replace("homeassistant/switch/", "")
-        server_guid = server_guid.replace("_server_switch/set", "")
-        server_dict = complete_guid_dict[server_guid]
-        server_ip = server_dict["server_ip"]
-        server_user = server_dict["server_user"]
-        server_pass = server_dict["server_pass"]
-        ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power off"
-        logging.debug(ipmi_power_command)
-        subprocess.run(ipmi_power_command, shell=True, capture_output=True) 
-        get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
-        clean_topic_dict = {msg.topic: ""}
-        mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
+    if msg.topic == "$SYS/#":
+        pass
+    else:
+        logging.info(msg.topic+" "+str(msg.payload))
+        server_config = config['SERVERS']
+        #guid_dict, complete_guid_dict=get_guid(server_config)
+        logging.debug("You have the following message:"+ msg.topic+" "+str(msg.payload))
+        if str(msg.payload.decode("utf-8")) == "on":
+            server_guid = msg.topic.replace("homeassistant/switch/", "")
+            server_guid = server_guid.replace("_server_switch/set", "")
+            server_dict = complete_guid_dict[server_guid]
+            server_ip = server_dict["server_ip"]
+            server_user = server_dict["server_user"]
+            server_pass = server_dict["server_pass"]
+            ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power on"
+            logging.debug(ipmi_power_command)
+            subprocess.run(ipmi_power_command, shell=True, capture_output=True)
+            clean_topic_dict = {msg.topic: ""}
+            mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
+            time.sleep(10)
+            get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
+        elif str(msg.payload.decode("utf-8")) == "off":
+            server_guid = msg.topic.replace("homeassistant/switch/", "")
+            server_guid = server_guid.replace("_server_switch/set", "")
+            server_dict = complete_guid_dict[server_guid]
+            server_ip = server_dict["server_ip"]
+            server_user = server_dict["server_user"]
+            server_pass = server_dict["server_pass"]
+            ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power off"
+            logging.debug(ipmi_power_command)
+            subprocess.run(ipmi_power_command, shell=True, capture_output=True) 
+            get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
+            clean_topic_dict = {msg.topic: ""}
+            mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
 
 def on_publish(client, userdata, mid):
-    logging.debug("the published message is:" + str(userdata))
-    logging.debug("the published message id is:" + str(mid))
+    logging.info("the published message is:" + str(userdata))
+    logging.info("the published message id is:" + str(mid))
 def mqtt_publish_dict(mqtt_dict, client, mqtt_ip):
     for x, y in mqtt_dict.items():
 #        client.connect(mqtt_ip, 1883, 60)
         client.publish(str(x), str(y), qos=1, retain=True).wait_for_publish
-        logging.debug("You have sent the following payload: " + str(y))
-        logging.debug("To the configuration topic: " + str(x))
-        logging.debug("On the server with IP: " + mqtt_ip)
+        logging.info("You have sent the following payload: " + str(y))
+        logging.info("To the configuration topic: " + str(x))
+        logging.info("On the server with IP: " + mqtt_ip)
 def get_mqtt(config):
     try:
         mqtt_dict = config['MQTT']
@@ -456,6 +459,7 @@ def main(): # Here i have the main program
                         logging.info("You have no SDRs.")
                     else:
                         sdr_sensor_mqtt_dict, sdr_states = get_sdr_sensor_states(server_config, guid_dict, sdr_topic_types, ha_sensor_topic)
+                        logging.info(sdr_sensor_mqtt_dict)
                         mqtt_publish_dict(sdr_sensor_mqtt_dict, client, mqtt_ip)
                         logging.debug("These are the SDR States collected:" + str(sdr_states))
                 except Exception as exception:
