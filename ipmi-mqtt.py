@@ -34,6 +34,40 @@ def on_connect(client, userdata, flags, rc):
     # reconnect then subscriptions will be renewed.
     client.subscribe("$SYS/#")
 # The callback for when a PUBLISH message is received from the server.
+#I create the on_message function so that it generates 
+def on_message(client, userdata, msg):
+    logger.info(msg.topic+" "+str(msg.payload))
+    server_config = config['SERVERS']
+    #guid_dict, complete_guid_dict=get_guid(server_config)
+    logging.debug("You have the following message:"+ msg.topic+" "+str(msg.payload))
+    if str(msg.payload.decode("utf-8")) == "on":
+        server_guid = msg.topic.replace("homeassistant/switch/", "")
+        server_guid = server_guid.replace("_server_switch/set", "")
+        server_dict = complete_guid_dict[server_guid]
+        server_ip = server_dict["server_ip"]
+        server_user = server_dict["server_user"]
+        server_pass = server_dict["server_pass"]
+        ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power on"
+        logging.debug(ipmi_power_command)
+        subprocess.run(ipmi_power_command, shell=True, capture_output=True)
+        clean_topic_dict = {msg.topic: ""}
+        mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
+        time.sleep(10)
+        get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
+    elif str(msg.payload.decode("utf-8")) == "off":
+        server_guid = msg.topic.replace("homeassistant/switch/", "")
+        server_guid = server_guid.replace("_server_switch/set", "")
+        server_dict = complete_guid_dict[server_guid]
+        server_ip = server_dict["server_ip"]
+        server_user = server_dict["server_user"]
+        server_pass = server_dict["server_pass"]
+        ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power off"
+        logging.debug(ipmi_power_command)
+        subprocess.run(ipmi_power_command, shell=True, capture_output=True) 
+        get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
+        clean_topic_dict = {msg.topic: ""}
+        mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
+
 def on_publish(client, userdata, mid):
     logging.debug("the published message is:" + str(userdata))
     logging.debug("the published message id is:" + str(mid))
@@ -70,7 +104,7 @@ def get_mqtt(config):
 def get_guid(server_config):
     try:
         guid_dict = {}
-        server_ip_dict =  {}
+        complete_guid_dict =  {}
         for server in server_config:
             server_nodename = server['IPMI_NODENAME']
             server_ip = server['IPMI_IP']
@@ -82,10 +116,11 @@ def get_guid(server_config):
             if ipmi_guid_pure == '':
                 logging.error(f"The server {server_nodename} has returned no GUID when connected through IPMI. There probably is a connection error.")
             ipmi_guid_pure = ipmi_guid_pure[15:] # I strip the sentence System GUID : 
-            guid_dict[server_ip]=ipmi_guid_pure.strip() #I add this server's guid to the list on the position equal to the number of the server on the loop  
-            server_ip_dict[ipmi_guid_pure.strip()]={"server_ip": server_ip, "server_user": server_user, "server_pass": server_pass, "server_nodename": server_nodename}
+            guid_dict[server_ip]=ipmi_guid_pure.strip() #I add this server's guid to the dictionary on the key equal to the server's ip  
+            complete_guid_dict[ipmi_guid_pure.strip()]={"server_ip": server_ip, "server_user": server_user, "server_pass": server_pass, "server_nodename": server_nodename} # I create a dictionnary with the server's GUID as the key for the whole server info
         logging.debug("The following GUIDs have been found:" + str(guid_dict))
-        return guid_dict
+
+        return guid_dict, complete_guid_dict
     except Exception as exception:
         logging.critical(f"There is an error generating your server's guid. The error is the following: {exception}")
 def get_topics(config):
@@ -113,27 +148,6 @@ def get_topics(config):
         logging.critical(f'Your YAML is missing something in the TOPICS section. You get the following error: {exception} ')
     logging.info(f'You have {sdr_count} SDRs in your YAML file.')           
     return topic_dict, power_topic, switch_topic, sdr_topic_types, sdr_count
-def get_server_ip_dict(server_config):
-    try:
-        guid_dict = {}
-        server_ip_dict =  {}
-        for server in server_config:
-            server_nodename = server['IPMI_NODENAME']
-            server_ip = server['IPMI_IP']
-            server_user = server['IPMI_USER']
-            server_pass = server['IPMI_PASSWORD']
-            ipmi_guid_command = f"ipmitool -I lanplus -H \"{server_ip}\" -L User -U \"{server_user}\" -P \"{server_pass}\" mc guid|grep -i guid"
-            ipmi_command_subprocess = subprocess.run(ipmi_guid_command, shell=True, capture_output=True)
-            ipmi_guid_pure = ipmi_command_subprocess.stdout.decode("utf-8") #I decode the shell output with UTF-8
-            if ipmi_guid_pure == '':
-                logging.error(f"The server {server_nodename} has returned no GUID when connected through IPMI. There probably is a connection error.")
-            ipmi_guid_pure = ipmi_guid_pure[15:] # I strip the sentence System GUID : 
-            guid_dict[server_ip]=ipmi_guid_pure.strip() #I add this server's guid to the list on the position equal to the number of the server on the loop  
-            server_ip_dict[ipmi_guid_pure.strip()]={"server_ip": server_ip, "server_user": server_user, "server_pass": server_pass, "server_nodename": server_nodename}
-        logging.debug("The following GUIDs have been found:" + str(guid_dict))
-        return server_ip_dict
-    except Exception as exception:
-        logging.critical(f"There is an error generating your server's guid. The error is the following: {exception}")
 def power_sdr_initialization(server_config, guid_dict, ha_binary_topic, power_topic, client, mqtt_ip):
     try:    
         power_payload = {}
@@ -168,7 +182,7 @@ def switch_sdr_initialization(server_config, guid_dict, ha_switch_topic, switch_
                 server_mqtt_state_topic = ha_binary_topic + "/" + server_identifier + "_" + power_topic + "/" + "state"
                 server_mqtt_command_topic = ha_switch_topic + "/" + server_identifier + "_" + switch_topic + "/" + "set"
                 # I add a power state to the switch, so that it's based on the power state topic previously created
-                mqtt_payload = {"device" : device_mqtt_config, "device_class" : "switch", "name" : server_nodename + " " + switch_topic , "unique_id" : server_identifier + "_switch_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic, "command_topic": server_mqtt_command_topic, "optimistic": False }
+                mqtt_payload = {"device" : device_mqtt_config, "device_class" : "switch", "name" : server_nodename + " " + switch_topic , "unique_id" : server_identifier + "_switch_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic, "command_topic": server_mqtt_command_topic, "optimistic": True }
                 mqtt_payload = json.dumps(mqtt_payload)  
                 switch_payload[server_mqtt_config_topic] = mqtt_payload
                 mqtt_publish_dict(switch_payload, client, mqtt_ip)
@@ -217,38 +231,6 @@ def sensor_sdr_initialization(server_config, guid_dict, sdr_topic_types, ha_sens
 #                    client.disconnect
     except Exception as exception:
         logging.error(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
-#I create the on_message function so that it generates 
-def on_message(client, userdata, msg):
-    logger.info(msg.topic+" "+str(msg.payload))
-    server_config = config['SERVERS']
-    server_ip_dict=get_server_ip_dict(server_config)
-    logging.info("You have the following message:"+ msg.topic+" "+str(msg.payload))
-    if str(msg.payload.decode("utf-8")) == "on":
-        server_guid = msg.topic.replace("homeassistant/switch/", "")
-        server_guid = server_guid.replace("_server_switch/set", "")
-        server_dict = server_ip_dict[server_guid]
-        server_ip = server_dict["server_ip"]
-        server_user = server_dict["server_user"]
-        server_pass = server_dict["server_pass"]
-        ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power on"
-        logging.debug(ipmi_power_command)
-        subprocess.run(ipmi_power_command, shell=True, capture_output=True)
-#        ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True) 
-#        logging.info(ipmi_command_subprocess.stdout.decode("utf-8").strip()) 
-    elif str(msg.payload.decode("utf-8")) == "off":
-        server_guid = msg.topic.replace("homeassistant/switch/", "")
-        server_guid = server_guid.replace("_server_switch/set", "")
-        server_dict = server_ip_dict[server_guid]
-        server_ip = server_dict["server_ip"]
-        server_user = server_dict["server_user"]
-        server_pass = server_dict["server_pass"]
-        ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power off"
-        logging.debug(ipmi_power_command)
-        subprocess.run(ipmi_power_command, shell=True, capture_output=True) 
-#        ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True) 
-#        logging.info(ipmi_command_subprocess.stdout.decode("utf-8").strip()) 
-    clean_topic_dict = {msg.topic: ""}
-    mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
 def switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip):
     try:
         if 'SWITCH' not in topic_dict:
@@ -277,25 +259,46 @@ def get_power_data(topic_dict, server_config, guid_dict, ha_binary_topic, power_
             for server in server_config:
                 server_nodename = server['IPMI_NODENAME']
                 server_ip = str(server['IPMI_IP'])
-                server_identifier = str("".join([guid_dict[server_ip]]))
-                if server_identifier == "":
+                server_guid = str("".join([guid_dict[server_ip]]))
+                if server_guid == "":
                     logging.warning(f"Power sensor data collection for {server_nodename} has been skipped because no GUID was generated.")
                 else:
                     server_user = server['IPMI_USER']
                     server_pass = server['IPMI_PASSWORD']
-                    server_mqtt_topic = ha_binary_topic + "/" + server_identifier + "_" + power_topic + "/" + "state"
+                    server_mqtt_topic = ha_binary_topic + "/" + server_guid+ "_" + power_topic + "/" + "state"
                     ipmi_power_command = f"ipmitool -I lanplus -L User -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power status | cut -b 18-20"
                     ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True)
                     server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
-                    power_states[server_identifier] = server_power_state #I use the GUIDs as key with the server's power state as output
+                    power_states[server_guid] = server_power_state #I use the GUIDs as key with the server's power state as output
 #                    client.connect(mqtt_ip, 1883, 60)
                     client.publish(server_mqtt_topic, server_power_state, qos=1, retain=True)
                     logging.debug("You have sent the following payload: " + str(server_power_state))
                     logging.debug("To the power state topic: " + str(server_mqtt_topic))
                     logging.debug("On the server with IP: " + mqtt_ip)
-#                    client.disconnect
-                    time.sleep(5)
         logging.debug(str(power_states))
+    except Exception as exception:
+        logging.error(f"There is an error in your power sensor collection. The error is the following: {exception}")
+def get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip):
+    try:
+        if 'POWER' not in topic_dict:
+            logging.info("You have no power topic.")
+        elif server_guid == "":
+                logging.warning(f"Power sensor data collection for {server_nodename} has been skipped because no GUID was generated.")
+        else:
+            server_dict = complete_guid_dict[server_guid]
+            server_ip = server_dict["server_ip"]
+            server_user = server_dict["server_user"]
+            server_pass = server_dict["server_pass"]
+            server_nodename = server_dict["server_nodename"]
+            server_mqtt_topic = ha_binary_topic + "/" + server_guid + "_" + power_topic + "/" + "state"
+            ipmi_power_command = f"ipmitool -I lanplus -L User -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power status | cut -b 18-20"
+            ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True)
+            server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
+            logging.debug(ipmi_power_command)
+            client.publish(server_mqtt_topic, server_power_state, qos=1, retain=True)
+            logging.debug("You have sent the following payload: " + str(server_power_state))
+            logging.debug("To the power state topic: " + str(server_mqtt_topic))
+            logging.debug("On the server with IP: " + mqtt_ip)
     except Exception as exception:
         logging.error(f"There is an error in your power sensor collection. The error is the following: {exception}")
 def supermicro_ipmi_format(current_sdr, server_sdr_state):
@@ -357,6 +360,7 @@ def get_sdr_data(current_sdr, server_ip, server_user, server_pass, sdr_topic_typ
         return server_sdr_state, sdr_type
 def get_sdr_sensor_states(server_config, guid_dict, sdr_topic_types, ha_sensor_topic):
     sdr_states = {} #I create a dictionary for all the servers
+    sdr_sensor_mqtt_dict = {}
     for server in server_config:
 
         server_nodename = str(server['IPMI_NODENAME'])
@@ -369,7 +373,6 @@ def get_sdr_sensor_states(server_config, guid_dict, sdr_topic_types, ha_sensor_t
             server_pass = str(server['IPMI_PASSWORD'])
             sdr_list = server['SDRS']
             sdr_server_dict = {} # I create a dictionary with all of the servers values
-            sdr_sensor_mqtt_dict = {}
         for current_sdr in sdr_list:
             server_sdr_state, sdr_type = get_sdr_data(current_sdr, server_ip, server_user, server_pass, sdr_topic_types, server_nodename, server)
             if server_sdr_state == '':
@@ -387,7 +390,7 @@ def get_sdr_sensor_states(server_config, guid_dict, sdr_topic_types, ha_sensor_t
                 server_mqtt_state_topic = ha_sensor_topic + "/" + server_identifier + "_" + sdr_topic + "/" + "state"     
                 sdr_sensor_mqtt_dict[server_mqtt_state_topic] = sdr_value
             sdr_states[server_identifier] = sdr_server_dict
-            return sdr_sensor_mqtt_dict, sdr_states
+    return sdr_sensor_mqtt_dict, sdr_states
 def main(): # Here i have the main program
     """Main function to run ipmi-mqtt in a loop."""
     try:
@@ -407,12 +410,14 @@ def main(): # Here i have the main program
     except Exception as exception:
         logging.critical(f"Please check your YAML, it might be missing some parts. The exception is {exception}")
     #Create config variables
-    global mqtt_ip, mqtt_user, mqtt_pass, period, guid_dict, server_ip_dict
+    global mqtt_ip, mqtt_user, mqtt_pass, period, guid_dict, complete_guid_dict, topic_dict, ha_binary_topic, power_topic
+
     mqtt_ip, mqtt_user, mqtt_pass, period, ha_binary_topic, ha_sensor_topic, ha_switch_topic = get_mqtt(config)
-    #Get GUID for each server through IPMI
-    guid_dict=get_guid(server_config)
+    #Get GUID for each server through IPMI and SERVER IP DICT for each server based on GUID
+    guid_dict, complete_guid_dict=get_guid(server_config)
+    logging.debug(f"This is the server information organized by GUID: {str(complete_guid_dict)}")
     #GET SERVER IP DICT for each server based on GUID
-    server_ip_dict=get_server_ip_dict(server_config)
+    topic_dict, power_topic, switch_topic, sdr_topic_types, sdr_count = get_topics(config)
     #I first copy methods according to Paho MQTT documentation, then I set the mqtt user and password (which is why I needed first the get_mqtt method, then I start the connection and finnally I create the network loop.)
     try:
         client = mqtt.Client("ipmi-mqtt-server")
@@ -424,8 +429,7 @@ def main(): # Here i have the main program
         client.loop_start()
     except Exception as exception:
         logging.critical(f"There seems to be a problem connecting to the mqtt server. The exception is {exception}")
-    logging.debug(f"This is the server information organized by IP: {str(server_ip_dict)}")
-    topic_dict, power_topic, switch_topic, sdr_topic_types, sdr_count = get_topics(config)
+
     logging.debug(f"You have {str(sdr_count)} SDRs.")
     #First run - power device initialization on HA
     power_sdr_initialization(server_config, guid_dict, ha_binary_topic, power_topic, client, mqtt_ip)
@@ -452,6 +456,8 @@ def main(): # Here i have the main program
                         logging.info("You have no SDRs.")
                     else:
                         sdr_sensor_mqtt_dict, sdr_states = get_sdr_sensor_states(server_config, guid_dict, sdr_topic_types, ha_sensor_topic)
+                        print(sdr_sensor_mqtt_dict)
+                        print(sdr_states)
                         mqtt_publish_dict(sdr_sensor_mqtt_dict, client, mqtt_ip)
                         logging.debug("These are the SDR States collected:" + str(sdr_states))
                 except Exception as exception:
