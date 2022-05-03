@@ -32,7 +32,7 @@ yaml, paho-mqtt and python-daemon (which are all on ports):
 pkg install py38-daemon py38-yaml py38-paho-mqttp
 ```
 
-Once installed, just copy this repo (you can use git clone), complete the YAML file and rename it config.yaml, make the script executable and run it.
+Once installed, just copy this repo (you can use git clone), complete the YAML file and rename it config.yaml in the /config/ folder, make the script executable and run it.
 
 That's it. You can execute it with -i in order to just execute the config payload being sent to the MQTT topic, or -d in order to have the script run as a daemon. You can also set a time (in seconds) inside the YAML file for the script to run in a loop and get new sensor values in that time period or simply run with -o to run one time only. 
 
