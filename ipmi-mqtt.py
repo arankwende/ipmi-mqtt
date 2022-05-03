@@ -456,8 +456,6 @@ def main(): # Here i have the main program
                         logging.info("You have no SDRs.")
                     else:
                         sdr_sensor_mqtt_dict, sdr_states = get_sdr_sensor_states(server_config, guid_dict, sdr_topic_types, ha_sensor_topic)
-                        print(sdr_sensor_mqtt_dict)
-                        print(sdr_states)
                         mqtt_publish_dict(sdr_sensor_mqtt_dict, client, mqtt_ip)
                         logging.debug("These are the SDR States collected:" + str(sdr_states))
                 except Exception as exception:
