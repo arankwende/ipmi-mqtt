@@ -364,7 +364,6 @@ def get_sdr_data(current_sdr, server_ip, server_user, server_pass, sdr_topic_typ
             return server_sdr_state, sdr_type
         except Exception as exception:
             logging.critical(f'There was a problem getting SDR data. You get the following error: {exception} ')
-
 def get_sdr_sensor_states(server_config, guid_dict, sdr_topic_types, ha_sensor_topic):
     try:
         sdr_states = {} #I create a dictionary for all the servers
