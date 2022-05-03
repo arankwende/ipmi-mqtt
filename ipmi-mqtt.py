@@ -36,7 +36,7 @@ def on_connect(client, userdata, flags, rc):
 # The callback for when a PUBLISH message is received from the server.
 #I create the on_message function so that it generates 
 def on_message(client, userdata, msg):
-    if msg.topic == "$SYS/#":
+    if "$SYS/" in msg.topic: # I filter out the $SYS internal mqtt topic
         pass
     else:
         logging.info(msg.topic+" "+str(msg.payload))
@@ -72,15 +72,15 @@ def on_message(client, userdata, msg):
             mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
 
 def on_publish(client, userdata, mid):
-    logging.info("the published message is:" + str(userdata))
-    logging.info("the published message id is:" + str(mid))
+    logging.debug("the published message status:" + str(int(userdata or 0)) + " (0 means published)")
+    logging.debug("the published message id is:" + str(mid))
 def mqtt_publish_dict(mqtt_dict, client, mqtt_ip):
     for x, y in mqtt_dict.items():
 #        client.connect(mqtt_ip, 1883, 60)
         client.publish(str(x), str(y), qos=1, retain=True).wait_for_publish
-        logging.info("You have sent the following payload: " + str(y))
-        logging.info("To the configuration topic: " + str(x))
-        logging.info("On the server with IP: " + mqtt_ip)
+        logging.debug("You have sent the following payload: " + str(y))
+        logging.debug("To the following topic: " + str(x))
+        logging.debug("On the server with IP: " + mqtt_ip)
 def get_mqtt(config):
     try:
         mqtt_dict = config['MQTT']
@@ -354,46 +354,53 @@ def asus_ipmi_format(current_sdr, server_sdr_state):
         logging.info(f"The SDR class {current_sdr['SDR_CLASS']} is not defined so we're gonna take the complete information from the column.")
     return sdr_value
 def get_sdr_data(current_sdr, server_ip, server_user, server_pass, sdr_topic_types, server_nodename, server):
-        sdr_entity = current_sdr['VALUE']
-        ipmi_sdr_command = f"ipmitool -I lanplus -L User -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" sdr entity \"{sdr_entity}\""                            
-        ipmi_command_subprocess = subprocess.run(ipmi_sdr_command, shell=True, capture_output=True)
-        server_sdr_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()                           
-        sdr_type = current_sdr['SDR_TYPE']
-        sdr_type = sdr_topic_types[sdr_type]
-        return server_sdr_state, sdr_type
-def get_sdr_sensor_states(server_config, guid_dict, sdr_topic_types, ha_sensor_topic):
-    sdr_states = {} #I create a dictionary for all the servers
-    sdr_sensor_mqtt_dict = {}
-    for server in server_config:
+        try:
+            sdr_entity = current_sdr['VALUE']
+            ipmi_sdr_command = f"ipmitool -I lanplus -L User -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" sdr entity \"{sdr_entity}\""                            
+            ipmi_command_subprocess = subprocess.run(ipmi_sdr_command, shell=True, capture_output=True)
+            server_sdr_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()                           
+            sdr_type = current_sdr['SDR_TYPE']
+            sdr_type = sdr_topic_types[sdr_type]
+            return server_sdr_state, sdr_type
+        except Exception as exception:
+            logging.critical(f'There was a problem getting SDR data. You get the following error: {exception} ')
 
-        server_nodename = str(server['IPMI_NODENAME'])
-        server_ip = str(server['IPMI_IP'])
-        server_identifier = str("".join([guid_dict[server_ip]]))
-        if server_identifier == "":
-            logging.warning(f"SDR sensor data collection for {server_nodename} has been skipped because no GUID was generated.")
-        else:
-            server_user = str(server['IPMI_USER'])
-            server_pass = str(server['IPMI_PASSWORD'])
-            sdr_list = server['SDRS']
-            sdr_server_dict = {} # I create a dictionary with all of the servers values
-        for current_sdr in sdr_list:
-            server_sdr_state, sdr_type = get_sdr_data(current_sdr, server_ip, server_user, server_pass, sdr_topic_types, server_nodename, server)
-            if server_sdr_state == '':
-                logging.warning(f" Server {server_nodename} has returned no SDR information over IPMI, a connection problem is likely.")
+def get_sdr_sensor_states(server_config, guid_dict, sdr_topic_types, ha_sensor_topic):
+    try:
+        sdr_states = {} #I create a dictionary for all the servers
+        sdr_sensor_mqtt_dict = {}
+        for server in server_config:
+
+            server_nodename = str(server['IPMI_NODENAME'])
+            server_ip = str(server['IPMI_IP'])
+            server_identifier = str("".join([guid_dict[server_ip]]))
+            if server_identifier == "":
+                logging.warning(f"SDR sensor data collection for {server_nodename} has been skipped because no GUID was generated.")
             else:
-                if server['BRAND'] == 'SUPERMICRO':
-                    sdr_value = supermicro_ipmi_format(current_sdr, server_sdr_state)
-                elif server['BRAND'] == 'ASUS':
-                    sdr_value = asus_ipmi_format(current_sdr, server_sdr_state)
-                if sdr_value == 'No' or sdr_value == 'Di':
-                    sdr_value = ""
-                    logging.warning(f"IPMI returned an empty value for server {server_nodename} it is likely the server is OFF and so no sensor data is being collected.")
-                sdr_topic = sdr_type
-                sdr_server_dict[sdr_type] = sdr_value
-                server_mqtt_state_topic = ha_sensor_topic + "/" + server_identifier + "_" + sdr_topic + "/" + "state"     
-                sdr_sensor_mqtt_dict[server_mqtt_state_topic] = sdr_value
-            sdr_states[server_identifier] = sdr_server_dict
-    return sdr_sensor_mqtt_dict, sdr_states
+                server_user = str(server['IPMI_USER'])
+                server_pass = str(server['IPMI_PASSWORD'])
+                sdr_list = server['SDRS']
+                sdr_server_dict = {} # I create a dictionary with all of the servers values
+            for current_sdr in sdr_list:
+                server_sdr_state, sdr_type = get_sdr_data(current_sdr, server_ip, server_user, server_pass, sdr_topic_types, server_nodename, server)
+                if server_sdr_state == '':
+                    logging.warning(f" Server {server_nodename} has returned no SDR information over IPMI, a connection problem is likely.")
+                else:
+                    if server['BRAND'] == 'SUPERMICRO':
+                        sdr_value = supermicro_ipmi_format(current_sdr, server_sdr_state)
+                    elif server['BRAND'] == 'ASUS':
+                        sdr_value = asus_ipmi_format(current_sdr, server_sdr_state)
+                    if sdr_value == 'No' or sdr_value == 'Di':
+                        sdr_value = ""
+                        logging.warning(f"IPMI returned an empty value for server {server_nodename} it is likely the server is OFF and so no sensor data is being collected.")
+                    sdr_topic = sdr_type
+                    sdr_server_dict[sdr_type] = sdr_value
+                    server_mqtt_state_topic = ha_sensor_topic + "/" + server_identifier + "_" + sdr_topic + "/" + "state"     
+                    sdr_sensor_mqtt_dict[server_mqtt_state_topic] = sdr_value
+                sdr_states[server_identifier] = sdr_server_dict
+        return sdr_sensor_mqtt_dict, sdr_states
+    except Exception as exception:
+        logging.critical(f'There was a problem getting SDR sensor states. You get the following error: {exception} ')
 def main(): # Here i have the main program
     """Main function to run ipmi-mqtt in a loop."""
     try:
