@@ -30,18 +30,16 @@ chown -R ipmimqtt /usr/local/share/ipmi-mqtt
 We need to create the config.yaml file and populate it as specified on this repo:
 ```
 nano /usr/local/share/ipmi-mqtt/config/config.yaml
-
 ```
 
 We now make the user we created (in this example ipmimqtt) owner of the ipmi folder:
 ```
 chown -R ipmimqtt /usr/local/share/ipmi-mqtt
-
 ```
+
 and we make the folder executable:
 ```
 chmod -R +x /usr/local/share/ipmi-mqtt
-
 ```
 
 Now we copy the rc.d example script into the user rc.d folder:
