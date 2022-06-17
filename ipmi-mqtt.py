@@ -523,7 +523,7 @@ if getattr(args,'DEBUG'):
     logger.setLevel(logging.DEBUG)  #I create an option to run the program in debug mode and receive more information on the logs
     fh.setLevel(logging.DEBUG)
 else:
-    logger.setLevel(logging.info)
+    logger.setLevel(logging.INFO)
 if getattr(args,'i'):
     logging.info("Running with -i in initialization mode.")
 if getattr(args,'o'):
