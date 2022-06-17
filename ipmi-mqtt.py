@@ -29,7 +29,7 @@ def load_config():
 # Connect to MQTT funcionts - this I took directly from the paho docs.
 def on_connect(client, userdata, flags, rc):
     if int(rc) == 0:
-        logging.info(f"Succesfully connected to the server.The rc is {rc}.")
+        logging.debug(f"Succesfully connected to the server.The rc is {rc}.")
         client.subscribe("$SYS/#")
     elif int(rc) == 1:
         logging.info(f"The connection was refused due to an incorrect protocol version.The rc is {rc}.")
@@ -52,9 +52,8 @@ def on_message(client, userdata, msg):
     if "$SYS/" in msg.topic: # I filter out the $SYS internal mqtt topic
         pass
     else:
+        print(msg.topic)
         logging.info(msg.topic+" "+str(msg.payload))
-        server_config = config['SERVERS']
-        #guid_dict, complete_guid_dict=get_guid(server_config)
         logging.debug("You have the following message:"+ msg.topic+" "+str(msg.payload))
         if str(msg.payload.decode("utf-8")) == "on":
             server_guid = msg.topic.replace("homeassistant/switch/", "")
@@ -87,6 +86,9 @@ def on_message(client, userdata, msg):
 def on_publish(client, userdata, mid):
     logging.debug("the published message status:" + str(int(userdata or 0)) + " (0 means published)")
     logging.debug("the published message id is:" + str(mid))
+def on_subscribe(client, userdata, mid, granted_qos):
+    print("The server has acknowledged your subscriptio.")
+
 def mqtt_publish_dict(mqtt_dict, client, mqtt_ip):
     for x, y in mqtt_dict.items():
         client.publish(str(x), str(y), qos=1, retain=True).wait_for_publish
@@ -100,7 +102,7 @@ def get_mqtt(config):
         mqtt_user = mqtt_dict['MQTT_USER']
         mqtt_pass = mqtt_dict['MQTT_PW']
         period = mqtt_dict['TIME_PERIOD']
-        logging.debug("This is your mqqt dictionary:" + str(mqtt_dict))
+        logging.debug("This is your mqtt dictionary:" + str(mqtt_dict))
         if 'HA_BINARY' in mqtt_dict:
             ha_binary_topic= mqtt_dict['HA_BINARY']
         else:
@@ -245,24 +247,10 @@ def sensor_sdr_initialization(server_config, guid_dict, sdr_topic_types, ha_sens
                     mqtt_publish_dict(sdr_payload, client, mqtt_ip)
     except Exception as exception:
         logging.error(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
-def switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip):
-    try:
-        if 'SWITCH' not in topic_dict:
-            logging.info("You have no power topic.")
-        else:
-            
-            for server in server_config:
-                server_nodename = server['IPMI_NODENAME']
-                server_ip = str(server['IPMI_IP'])
-                server_identifier = str("".join([guid_dict[server_ip]]))
-                if server_identifier == "":
-                    logging.warning(f"Can't subscribe to switch state changes for {server_nodename}, it has been skipped because no GUID was generated.")
-                else:
-                    server_mqtt_topic_subscribe = ha_switch_topic + "/" + server_identifier + "_" + switch_topic + "/" + "set"
-                    client.subscribe(server_mqtt_topic_subscribe)
-                    logging.info(f"You are now subscribed to {server_mqtt_topic_subscribe}.")
-    except Exception as exception:
-        logging.error(f"There is an error in your power sensor collection. The error is the following: {exception}")
+
+
+
+
 def get_power_data(topic_dict, server_config, guid_dict, ha_binary_topic, power_topic, client, mqtt_ip):
     try:
         if 'POWER' not in topic_dict:
@@ -444,6 +432,7 @@ def main(): # Here i have the main program
     topic_dict, power_topic, switch_topic, sdr_topic_types, sdr_count = get_topics(config)
     #I first copy methods according to Paho MQTT documentation, then I set the mqtt user and password (which is why I needed first the get_mqtt method, then I start the connection and finnally I create the network loop.)
     try:
+        global client
         client = mqtt.Client("ipmi-mqtt-server")
         client.on_connect = on_connect
         client.on_message = on_message
@@ -462,6 +451,27 @@ def main(): # Here i have the main program
     # First run Sensor initialization
     sensor_sdr_initialization(server_config, guid_dict, sdr_topic_types, ha_sensor_topic, client, mqtt_ip)
     logging.info("Initialization complete.")
+    try:
+        if 'SWITCH' not in topic_dict:
+            logging.info("You have no power topic.")
+        else:
+            
+            for server in server_config:
+                server_nodename = server['IPMI_NODENAME']
+                server_ip = str(server['IPMI_IP'])
+                server_identifier = str("".join([guid_dict[server_ip]]))
+                if server_identifier == "":
+                    logging.warning(f"Can't subscribe to switch state changes for {server_nodename}, it has been skipped because no GUID was generated.")
+                else:
+                    server_mqtt_topic_subscribe = ha_switch_topic + "/" + server_identifier + "_" + switch_topic + "/" + "set"
+                    client.subscribe(str(server_mqtt_topic_subscribe),0)
+                    logging.debug(f"You are now subscribed to {server_mqtt_topic_subscribe}.")
+    except Exception as exception:
+        logging.error(f"There is an error in your power sensor collection. The error is the following: {exception}")
+
+
+
+#    switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
     if getattr(args,'i'):
         logging.info("Started in iniatilization mode, so stopping now.")
         client.disconnect
@@ -469,7 +479,6 @@ def main(): # Here i have the main program
         quit()
     else:
         #I subscribe for switch topics on the mqtt server
-        switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
         while(True):
             #Sensor data gathering
                 # I get the power data from each server, one by one (following guid_dict order) and then send that data through mqtt to the mqtt server
@@ -552,6 +561,6 @@ elif getattr(args,'s'):
     guid_dict=get_guid(server_config)
     client.connect_async(mqtt_ip, 1883, 60)
     client.loop_start()
-    switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
+    #switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
 elif __name__== '__main__':
         main()
