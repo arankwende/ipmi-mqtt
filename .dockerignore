@@ -1,3 +1,6 @@
 #Dockerignore to ignor config files on image build
 */config
+*/freebsd-service
+*/systemd-service
 *.md
+*.yaml

@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
-FROM python:3.11.0a7-bullseye
-ENV DEBIAN_FRONTEND=noninteractive
+FROM ubuntu:latest
 WORKDIR /ipmi-mqtt
-RUN apt update && apt install -y ipmitool git && rm -rf /var/lib/apt/lists/*
+RUN apt update && apt install -y python3 python3-pip ipmitool git python3 && rm -rf /var/lib/apt/lists/*
 RUN pip install pyyaml paho-mqtt python-daemon
-RUN git clone https://github.com/arankwende/ipmi-mqtt .
+RUN cp . /ipmi-mqtt/
+#RUN git clone https://github.com/arankwende/ipmi-mqtt /ipmi-mqtt
 EXPOSE 1886
-CMD ["python3", "ipmi-mqtt.py"]
+CMD python3 /ipmi-mqtt/ipmi-mqtt.py

@@ -27,14 +27,27 @@ def load_config():
         print("There's no config yaml file in the program's folder, please check the logs.")
         sys.exit()
 # Connect to MQTT funcionts - this I took directly from the paho docs.
-# The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
-    logging.info("Connected with result code "+str(rc))
+    if int(rc) == 0:
+        logging.info(f"Succesfully connected to the server.The rc is {rc}.")
+        client.subscribe("$SYS/#")
+    elif int(rc) == 1:
+        logging.info(f"The connection was refused due to an incorrect protocol version.The rc is {rc}.")
+        print("The connection was refused due to an incorrect protocol version.") 
+    elif int(rc) == 2:
+        logging.info(f"The connection was refused due to an incorrect client identifier. The rc is {rc}.") 
+        print("The connection was refused due to an incorrect client identifier.") 
+    elif int(rc) == 3:
+        logging.info(f"The connection was refused, the server is unavailable or there is mistake in the IP address.The rc is {rc}.") 
+        print("The connection was refused, the server is unavailable or there is mistake in the IP address.The rc is {rc}.") 
+    elif int(rc) == 4:
+        logging.info(f"The connection was refused due to lack of authorization (wrong user or password).The rc is {rc}.")  
+        print("The connection was refused due to lack of authorization (wrong user or password).")  
+    elif int(rc) == 5:
+        logging.info(f"The connection was refused due to lack of authorization (wrong user or password).The rc is {rc}.")  
+        print("The connection was refused due to lack of authorization (wrong user or password).")  
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-    client.subscribe("$SYS/#")
-# The callback for when a PUBLISH message is received from the server.
-#I create the on_message function so that it generates 
 def on_message(client, userdata, msg):
     if "$SYS/" in msg.topic: # I filter out the $SYS internal mqtt topic
         pass
@@ -70,13 +83,12 @@ def on_message(client, userdata, msg):
             get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
             clean_topic_dict = {msg.topic: ""}
             mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
-
+        pass
 def on_publish(client, userdata, mid):
     logging.debug("the published message status:" + str(int(userdata or 0)) + " (0 means published)")
     logging.debug("the published message id is:" + str(mid))
 def mqtt_publish_dict(mqtt_dict, client, mqtt_ip):
     for x, y in mqtt_dict.items():
-#        client.connect(mqtt_ip, 1883, 60)
         client.publish(str(x), str(y), qos=1, retain=True).wait_for_publish
         logging.debug("You have sent the following payload: " + str(y))
         logging.debug("To the following topic: " + str(x))
@@ -231,7 +243,6 @@ def sensor_sdr_initialization(server_config, guid_dict, sdr_topic_types, ha_sens
                     mqtt_payload = json.dumps(mqtt_payload)  
                     sdr_payload[server_mqtt_config_topic] =  mqtt_payload
                     mqtt_publish_dict(sdr_payload, client, mqtt_ip)
-#                    client.disconnect
     except Exception as exception:
         logging.error(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
 def switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip):
@@ -248,7 +259,6 @@ def switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, swit
                     logging.warning(f"Can't subscribe to switch state changes for {server_nodename}, it has been skipped because no GUID was generated.")
                 else:
                     server_mqtt_topic_subscribe = ha_switch_topic + "/" + server_identifier + "_" + switch_topic + "/" + "set"
-#                    client.connect(mqtt_ip, 1883, 60)
                     client.subscribe(server_mqtt_topic_subscribe)
                     logging.info(f"You are now subscribed to {server_mqtt_topic_subscribe}.")
     except Exception as exception:
@@ -273,7 +283,6 @@ def get_power_data(topic_dict, server_config, guid_dict, ha_binary_topic, power_
                     ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True)
                     server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
                     power_states[server_guid] = server_power_state #I use the GUIDs as key with the server's power state as output
-#                    client.connect(mqtt_ip, 1883, 60)
                     client.publish(server_mqtt_topic, server_power_state, qos=1, retain=True)
                     logging.debug("You have sent the following payload: " + str(server_power_state))
                     logging.debug("To the power state topic: " + str(server_mqtt_topic))
@@ -305,54 +314,60 @@ def get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary
     except Exception as exception:
         logging.error(f"There is an error in your power sensor collection. The error is the following: {exception}")
 def supermicro_ipmi_format(current_sdr, server_sdr_state):
-    server_sdr_values = server_sdr_state.split("|")
-    if current_sdr['SDR_CLASS'] == 'temperature':
-        sdr_value = server_sdr_values[4]
-        sdr_value = sdr_value[:3]
-        sdr_value = sdr_value.strip()
-    elif current_sdr['SDR_CLASS'] == 'fan':
-        sdr_value = server_sdr_values[4]
-        sdr_value = sdr_value[:6]
-        sdr_value = sdr_value.strip()
-    elif current_sdr['SDR_CLASS'] == 'frequency':
-        sdr_value = server_sdr_values[4]
-        sdr_value = sdr_value[:6]
-        sdr_value = sdr_value.strip()
-        sdr_value = int(sdr_value)/60
-    elif current_sdr['SDR_CLASS'] == 'voltage':
-        sdr_value = server_sdr_values[4]
-        sdr_value = sdr_value[:6]
-        sdr_value = sdr_value.strip()
-    else:
-        sdr_value = server_sdr_values[4]
-        logging.info(f"The SDR class {current_sdr['SDR_CLASS']} is not defined so we're gonna take the complete information from the column.")
-    return sdr_value
+    try:
+        server_sdr_values = server_sdr_state.split("|")
+        if current_sdr['SDR_CLASS'] == 'temperature':
+            sdr_value = server_sdr_values[4]
+            sdr_value = sdr_value[:3]
+            sdr_value = sdr_value.strip()
+        elif current_sdr['SDR_CLASS'] == 'fan':
+            sdr_value = server_sdr_values[4]
+            sdr_value = sdr_value[:6]
+            sdr_value = sdr_value.strip()
+        elif current_sdr['SDR_CLASS'] == 'frequency':
+            sdr_value = server_sdr_values[4]
+            sdr_value = sdr_value[:6]
+            sdr_value = sdr_value.strip()
+            sdr_value = int(sdr_value)/60
+        elif current_sdr['SDR_CLASS'] == 'voltage':
+            sdr_value = server_sdr_values[4]
+            sdr_value = sdr_value[:6]
+            sdr_value = sdr_value.strip()
+        else:
+            sdr_value = server_sdr_values[4]
+            logging.info(f"The SDR class {current_sdr['SDR_CLASS']} is not defined so we're gonna take the complete information from the column.")
+        return sdr_value
+    except Exception as exception:
+        logging.critical(f'There was a problem getting SDR sensor states, specifically when trying to apply the formatting for Supermicro servers. You get the following error: {exception} ')
 def asus_ipmi_format(current_sdr, server_sdr_state):
-    sdr_subclass = current_sdr['SUBCLASS']
-    server_sdr_values = server_sdr_state.split("\n")
-    server_sdr_values = list(filter(lambda x: x.startswith(sdr_subclass), server_sdr_values))
-    server_sdr_values = server_sdr_values[0].split("|")
-    if current_sdr['SDR_CLASS'] == 'temperature':
-        sdr_value = server_sdr_values[4]
-        sdr_value = sdr_value[:3]
-        sdr_value = sdr_value.strip()
-    elif current_sdr['SDR_CLASS'] == 'fan':
-        sdr_value = server_sdr_values[4]
-        sdr_value = sdr_value[:6]
-        sdr_value = sdr_value.strip()
-    elif current_sdr['SDR_CLASS'] == 'frequency':
-        sdr_value = server_sdr_values[4]
-        sdr_value = sdr_value[:6]
-        sdr_value = sdr_value.strip()
-        sdr_value = int(sdr_value)/60
-    elif current_sdr['SDR_CLASS'] == 'voltage':
-        sdr_value = server_sdr_values[4]
-        sdr_value = sdr_value[:6]
-        sdr_value = sdr_value.strip()
-    else:
-        sdr_value = server_sdr_values[4]
-        logging.info(f"The SDR class {current_sdr['SDR_CLASS']} is not defined so we're gonna take the complete information from the column.")
-    return sdr_value
+    try:
+        sdr_subclass = current_sdr['SUBCLASS']
+        server_sdr_values = server_sdr_state.split("\n")
+        server_sdr_values = list(filter(lambda x: x.startswith(sdr_subclass), server_sdr_values))
+        server_sdr_values = server_sdr_values[0].split("|")
+        if current_sdr['SDR_CLASS'] == 'temperature':
+            sdr_value = server_sdr_values[4]
+            sdr_value = sdr_value[:3]
+            sdr_value = sdr_value.strip()
+        elif current_sdr['SDR_CLASS'] == 'fan':
+            sdr_value = server_sdr_values[4]
+            sdr_value = sdr_value[:6]
+            sdr_value = sdr_value.strip()
+        elif current_sdr['SDR_CLASS'] == 'frequency':
+            sdr_value = server_sdr_values[4]
+            sdr_value = sdr_value[:6]
+            sdr_value = sdr_value.strip()
+            sdr_value = int(sdr_value)/60
+        elif current_sdr['SDR_CLASS'] == 'voltage':
+            sdr_value = server_sdr_values[4]
+            sdr_value = sdr_value[:6]
+            sdr_value = sdr_value.strip()
+        else:
+            sdr_value = server_sdr_values[4]
+            logging.info(f"The SDR class {current_sdr['SDR_CLASS']} is not defined so we're gonna take the complete information from the column.")
+        return sdr_value
+    except Exception as exception:
+        logging.critical(f'There was a problem getting SDR sensor states, specifically when trying to apply the formatting for ASUS servers. You get the following error: {exception} ')
 def get_sdr_data(current_sdr, server_ip, server_user, server_pass, sdr_topic_types, server_nodename, server):
         try:
             sdr_entity = current_sdr['VALUE']
@@ -434,7 +449,7 @@ def main(): # Here i have the main program
         client.on_message = on_message
         client.on_publish= on_publish
         client.username_pw_set(mqtt_user, password=mqtt_pass)
-        client.connect(mqtt_ip, 1883, 60)
+        client.connect_async(mqtt_ip, 1883, 60)
         client.loop_start()
     except Exception as exception:
         logging.critical(f"There seems to be a problem connecting to the mqtt server. The exception is {exception}")
@@ -498,20 +513,17 @@ log_fname = os.path.join(log_dir, 'config/ipmi-mqtt.log') #I define a relative p
 formatter = logging.Formatter("[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
 logger = logging.getLogger() # I define format and instantiate first logger
 
-if getattr(args,'DEBUG'):
-    logger.setLevel(logging.DEBUG)  #I create an option to run the program in debug mode and receive more information on the logs
-else:
-    logger.setLevel(logging.INFO)
+
 
 fh = handlers.RotatingFileHandler(log_fname, mode='w', maxBytes=100000, backupCount=3) #This handler is important as I need a handler to pass to my daemon when run in daemon mode
 fh.setFormatter(formatter) 
 logger.addHandler(fh)
 
-if getattr(args,'DEBUG'): # I set the debug option for the handler too
+if getattr(args,'DEBUG'):
+    logger.setLevel(logging.DEBUG)  #I create an option to run the program in debug mode and receive more information on the logs
     fh.setLevel(logging.DEBUG)
 else:
-    logger.setLevel(logging.INFO)
-
+    logger.setLevel(logging.info)
 if getattr(args,'i'):
     logging.info("Running with -i in initialization mode.")
 if getattr(args,'o'):
@@ -538,7 +550,7 @@ elif getattr(args,'s'):
     client.on_publish= on_publish
     client.username_pw_set(mqtt_user, password=mqtt_pass)
     guid_dict=get_guid(server_config)
-    client.connect(mqtt_ip, 1883, 60)
+    client.connect_async(mqtt_ip, 1883, 60)
     client.loop_start()
     switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
 elif __name__== '__main__':
