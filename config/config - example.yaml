@@ -1,5 +1,6 @@
 MQTT:
     MQTT_ip: 192.168.XXX.XXX
+    MQTT_ID: "ipmi-mqtt-server"
     MQTT_USER: 'MQTTUSER'
     MQTT_PW: 'MQTTPASSWORD'
     HA_BINARY: 'homeassistant/binary_sensor' # MQTT topics for home assistant to automatically detect devices

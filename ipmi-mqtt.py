@@ -1,6 +1,7 @@
 #!/bin/python 
 # Las dependencias:
 from logging import NullHandler
+from multiprocessing.connection import wait
 import yaml
 import json
 import subprocess
@@ -29,32 +30,29 @@ def load_config():
 # Connect to MQTT funcionts - this I took directly from the paho docs.
 def on_connect(client, userdata, flags, rc):
     if int(rc) == 0:
-        logging.debug(f"Succesfully connected to the server.The rc is {rc}.")
+        logging.debug(f"Succesfully connected to the MQTT broker. The rc is {rc}.")
         client.subscribe("$SYS/#")
+        client.connected_flag=True #set flag for logic to wait for connection.
     elif int(rc) == 1:
-        logging.info(f"The connection was refused due to an incorrect protocol version.The rc is {rc}.")
-        print("The connection was refused due to an incorrect protocol version.") 
+        logging.info(f"The connection to the MQTT broker was refused due to an incorrect protocol version.The rc is {rc}.")
+        print(f"The connection to the MQTT broker was refused due to an incorrect protocol version. The rc is {rc}.") 
     elif int(rc) == 2:
-        logging.info(f"The connection was refused due to an incorrect client identifier. The rc is {rc}.") 
-        print("The connection was refused due to an incorrect client identifier.") 
+        logging.info(f"The connection to the MQTT broker was refused due to an incorrect client identifier. The rc is {rc}.") 
+        print(f"The connection was refused due to an incorrect client identifier. The rc is {rc}.") 
     elif int(rc) == 3:
-        logging.info(f"The connection was refused, the server is unavailable or there is mistake in the IP address.The rc is {rc}.") 
-        print("The connection was refused, the server is unavailable or there is mistake in the IP address.The rc is {rc}.") 
+        logging.info(f"The connection to the MQTT broker was refused, the server is unavailable or there is mistake in the IP address.The rc is {rc}.") 
+        print(f"The connection was refused, the server is unavailable or there is mistake in the IP address.The rc is {rc}.") 
     elif int(rc) == 4:
-        logging.info(f"The connection was refused due to lack of authorization (wrong user or password).The rc is {rc}.")  
-        print("The connection was refused due to lack of authorization (wrong user or password).")  
+        logging.info(f"The connection to the MQTT broker was refused due to lack of authorization (wrong user or password).The rc is {rc}.")  
+        print(f"The connection was refused due to lack of authorization (wrong user or password). The rc is {rc}.")  
     elif int(rc) == 5:
-        logging.info(f"The connection was refused due to lack of authorization (wrong user or password).The rc is {rc}.")  
-        print("The connection was refused due to lack of authorization (wrong user or password).")  
-    # Subscribing in on_connect() means that if we lose the connection and
-    # reconnect then subscriptions will be renewed.
+        logging.info(f"The connection to the MQTT broker was refused due to lack of authorization (wrong user or password).The rc is {rc}.")  
+        print(f"The connection was refused due to lack of authorization (wrong user or password). The rc is {rc}.")  
 def on_message(client, userdata, msg):
     if "$SYS/" in msg.topic: # I filter out the $SYS internal mqtt topic
         pass
     else:
-        print(msg.topic)
-        logging.info(msg.topic+" "+str(msg.payload))
-        logging.debug("You have the following message:"+ msg.topic+" "+str(msg.payload))
+        logging.info("You have the following message:"+ msg.topic+" "+str(msg.payload.decode("utf-8")))
         if str(msg.payload.decode("utf-8")) == "on":
             server_guid = msg.topic.replace("homeassistant/switch/", "")
             server_guid = server_guid.replace("_server_switch/set", "")
@@ -63,11 +61,10 @@ def on_message(client, userdata, msg):
             server_user = server_dict["server_user"]
             server_pass = server_dict["server_pass"]
             ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power on"
-            logging.debug(ipmi_power_command)
+            logging.debug(f"We are sending the following ipmi command: {ipmi_power_command}")
             subprocess.run(ipmi_power_command, shell=True, capture_output=True)
             clean_topic_dict = {msg.topic: ""}
             mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
-            time.sleep(10)
             get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
         elif str(msg.payload.decode("utf-8")) == "off":
             server_guid = msg.topic.replace("homeassistant/switch/", "")
@@ -77,21 +74,37 @@ def on_message(client, userdata, msg):
             server_user = server_dict["server_user"]
             server_pass = server_dict["server_pass"]
             ipmi_power_command = f"ipmitool -I lanplus -L Administrator -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" chassis power off"
-            logging.debug(ipmi_power_command)
+            logging.debug(f"We are sending the following ipmi command: {ipmi_power_command}")
             subprocess.run(ipmi_power_command, shell=True, capture_output=True) 
-            get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
             clean_topic_dict = {msg.topic: ""}
             mqtt_publish_dict(clean_topic_dict, client, mqtt_ip)
+            get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary_topic, power_topic, client, mqtt_ip)
         pass
 def on_publish(client, userdata, mid):
     logging.debug("the published message status:" + str(int(userdata or 0)) + " (0 means published)")
     logging.debug("the published message id is:" + str(mid))
+def switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip):
+    try:
+        if 'SWITCH' not in topic_dict:
+            logging.info("You have no power topic.")
+        else:
+            for server in server_config:
+                server_nodename = server['IPMI_NODENAME']
+                server_ip = str(server['IPMI_IP'])
+                server_identifier = str("".join([guid_dict[server_ip]]))
+                if server_identifier == "":
+                    logging.warning(f"Can't subscribe to switch state changes for {server_nodename}, it has been skipped because no GUID was generated.")
+                else:
+                    server_mqtt_topic_subscribe = str(ha_switch_topic) + "/" + str(server_identifier) + "_" + str(switch_topic) + "/set"
+                    client.subscribe(str(server_mqtt_topic_subscribe),2)
+                    logging.info(f"You are now subscribed to {server_mqtt_topic_subscribe}.")
+    except Exception as exception:
+        logging.error(f"There is an error in your power sensor collection. The error is the following: {exception}")
 def on_subscribe(client, userdata, mid, granted_qos):
-    print("The server has acknowledged your subscriptio.")
-
+    logging.info(f"The server has acknowledged your subscription requested on mid {mid} with qos {granted_qos}")
 def mqtt_publish_dict(mqtt_dict, client, mqtt_ip):
     for x, y in mqtt_dict.items():
-        client.publish(str(x), str(y), qos=1, retain=True).wait_for_publish
+        client.publish(str(x), str(y), qos=2, retain=True).wait_for_publish
         logging.debug("You have sent the following payload: " + str(y))
         logging.debug("To the following topic: " + str(x))
         logging.debug("On the server with IP: " + mqtt_ip)
@@ -101,6 +114,7 @@ def get_mqtt(config):
         mqtt_ip = mqtt_dict['MQTT_ip']
         mqtt_user = mqtt_dict['MQTT_USER']
         mqtt_pass = mqtt_dict['MQTT_PW']
+        mqtt_client_id = mqtt_dict['MQTT_ID']
         period = mqtt_dict['TIME_PERIOD']
         logging.debug("This is your mqtt dictionary:" + str(mqtt_dict))
         if 'HA_BINARY' in mqtt_dict:
@@ -117,7 +131,7 @@ def get_mqtt(config):
             logging.warning('There is no switch topic in your YAML file.')
     except Exception as exception:
         logging.critical(f'Your YAML is missing something in the MQTT section. You get the following error: {exception} ')
-    return mqtt_ip, mqtt_user, mqtt_pass, period, ha_binary_topic, ha_sensor_topic, ha_switch_topic
+    return mqtt_ip, mqtt_user, mqtt_pass, period, ha_binary_topic, ha_sensor_topic, ha_switch_topic, mqtt_client_id
 def get_guid(server_config):
     try:
         guid_dict = {}
@@ -247,10 +261,6 @@ def sensor_sdr_initialization(server_config, guid_dict, sdr_topic_types, ha_sens
                     mqtt_publish_dict(sdr_payload, client, mqtt_ip)
     except Exception as exception:
         logging.error(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
-
-
-
-
 def get_power_data(topic_dict, server_config, guid_dict, ha_binary_topic, power_topic, client, mqtt_ip):
     try:
         if 'POWER' not in topic_dict:
@@ -271,7 +281,7 @@ def get_power_data(topic_dict, server_config, guid_dict, ha_binary_topic, power_
                     ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True)
                     server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
                     power_states[server_guid] = server_power_state #I use the GUIDs as key with the server's power state as output
-                    client.publish(server_mqtt_topic, server_power_state, qos=1, retain=True)
+                    client.publish(server_mqtt_topic, server_power_state, qos=2, retain=True)
                     logging.debug("You have sent the following payload: " + str(server_power_state))
                     logging.debug("To the power state topic: " + str(server_mqtt_topic))
                     logging.debug("On the server with IP: " + mqtt_ip)
@@ -295,7 +305,7 @@ def get_single_power_data(complete_guid_dict, server_guid, topic_dict, ha_binary
             ipmi_command_subprocess = subprocess.run(ipmi_power_command, shell=True, capture_output=True)
             server_power_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
             logging.debug(ipmi_power_command)
-            client.publish(server_mqtt_topic, server_power_state, qos=1, retain=True)
+            client.publish(server_mqtt_topic, server_power_state, qos=2, retain=True)
             logging.debug("You have sent the following payload: " + str(server_power_state))
             logging.debug("To the power state topic: " + str(server_mqtt_topic))
             logging.debug("On the server with IP: " + mqtt_ip)
@@ -422,27 +432,30 @@ def main(): # Here i have the main program
     except Exception as exception:
         logging.critical(f"Please check your YAML, it might be missing some parts. The exception is {exception}")
     #Create config variables
-    global mqtt_ip, mqtt_user, mqtt_pass, period, guid_dict, complete_guid_dict, topic_dict, ha_binary_topic, power_topic
-
-    mqtt_ip, mqtt_user, mqtt_pass, period, ha_binary_topic, ha_sensor_topic, ha_switch_topic = get_mqtt(config)
+    global mqtt_ip, mqtt_user, mqtt_pass, period, guid_dict, complete_guid_dict, topic_dict, ha_binary_topic, power_topic, mqtt_client_id
+    mqtt_ip, mqtt_user, mqtt_pass, period, ha_binary_topic, ha_sensor_topic, ha_switch_topic, mqtt_client_id = get_mqtt(config)
     #Get GUID for each server through IPMI and SERVER IP DICT for each server based on GUID
     guid_dict, complete_guid_dict=get_guid(server_config)
     logging.debug(f"This is the server information organized by GUID: {str(complete_guid_dict)}")
     #GET SERVER IP DICT for each server based on GUID
     topic_dict, power_topic, switch_topic, sdr_topic_types, sdr_count = get_topics(config)
-    #I first copy methods according to Paho MQTT documentation, then I set the mqtt user and password (which is why I needed first the get_mqtt method, then I start the connection and finnally I create the network loop.)
+    #I first copy methods according to Paho MQTT documentation, then I set the mqtt user and password (which is why I needed first the get_mqtt method, then I start the connection and finally I create the network loop.)
     try:
-        global client
-        client = mqtt.Client("ipmi-mqtt-server")
+        mqtt.Client.connected_flag=False#create flag in class
+        client = mqtt.Client(str(mqtt_client_id), False)
         client.on_connect = on_connect
         client.on_message = on_message
-        client.on_publish= on_publish
+        client.on_publish = on_publish
+        client.on_subscribe = on_subscribe
         client.username_pw_set(mqtt_user, password=mqtt_pass)
-        client.connect_async(mqtt_ip, 1883, 60)
         client.loop_start()
+        client.connect(mqtt_ip, 1883, 60)
+        while not client.connected_flag: #I wait in a loop until I receive a connection ack.
+            logging.info("Connecting to MQTT Broker: waiting in loop until until the connection is established.")
+            time.sleep(1)
+        logging.info(f"Returning to the main loop, succesfully connected to the broker on {mqtt_ip}, with id {mqtt_client_id} and user {mqtt_user}")
     except Exception as exception:
         logging.critical(f"There seems to be a problem connecting to the mqtt server. The exception is {exception}")
-
     logging.debug(f"You have {str(sdr_count)} SDRs.")
     #First run - power device initialization on HA
     power_sdr_initialization(server_config, guid_dict, ha_binary_topic, power_topic, client, mqtt_ip)
@@ -451,34 +464,15 @@ def main(): # Here i have the main program
     # First run Sensor initialization
     sensor_sdr_initialization(server_config, guid_dict, sdr_topic_types, ha_sensor_topic, client, mqtt_ip)
     logging.info("Initialization complete.")
-    try:
-        if 'SWITCH' not in topic_dict:
-            logging.info("You have no power topic.")
-        else:
-            
-            for server in server_config:
-                server_nodename = server['IPMI_NODENAME']
-                server_ip = str(server['IPMI_IP'])
-                server_identifier = str("".join([guid_dict[server_ip]]))
-                if server_identifier == "":
-                    logging.warning(f"Can't subscribe to switch state changes for {server_nodename}, it has been skipped because no GUID was generated.")
-                else:
-                    server_mqtt_topic_subscribe = ha_switch_topic + "/" + server_identifier + "_" + switch_topic + "/" + "set"
-                    client.subscribe(str(server_mqtt_topic_subscribe),0)
-                    logging.debug(f"You are now subscribed to {server_mqtt_topic_subscribe}.")
-    except Exception as exception:
-        logging.error(f"There is an error in your power sensor collection. The error is the following: {exception}")
-
-
-
-#    switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
     if getattr(args,'i'):
         logging.info("Started in iniatilization mode, so stopping now.")
         client.disconnect
         client.loop_stop()
         quit()
     else:
-        #I subscribe for switch topics on the mqtt server
+        #I subscribe for switch topics on the mqtt broker
+        switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
+        #And now I run th main loop that will check for ipmi states and publish them
         while(True):
             #Sensor data gathering
                 # I get the power data from each server, one by one (following guid_dict order) and then send that data through mqtt to the mqtt server
@@ -494,9 +488,9 @@ def main(): # Here i have the main program
                         logging.debug("These are the SDR States collected:" + str(sdr_states))
                 except Exception as exception:
                     logging.error(f"There is an error in your SDR sensor collection. The error is the following: {exception}")
-    #            client.disconnect
                 if period == 0:  #If period set to 0, the script ends.
                     logging.info("The time period in the YAML file is set to 0, so the script will end.")
+                    client.disconnect
                     client.loop_stop()
                     quit()
                 elif getattr(args,'o'):
@@ -507,7 +501,8 @@ def main(): # Here i have the main program
                 else:
                     logging.info(f"Collection complete, will wait {period} seconds to start again")
                     time.sleep(period)
-#Now, to the code that runs
+
+#Some code that sets default parameters before running the program.
 #We define some arguments to be parsed as well as help messages and description for the script.
 parser = argparse.ArgumentParser(description='This is a simple python script that uses IPMITools in order to connect to your servers, review their power states and SDRs, if defined, and then send them through mqtt to an mqtt broker in order for Home Assistant to use them. In order for it to work, you must have filled your mqtt connetion information and your IPMI server connection information.')
 parser.add_argument('-i', action='store_true', help='Run once to only create the entities in your MQTT broker (and see them in home assistant).')
@@ -521,15 +516,12 @@ log_dir = os.path.dirname(os.path.realpath(__file__))
 log_fname = os.path.join(log_dir, 'config/ipmi-mqtt.log') #I define a relative path for the log to be saved on the same folder as my py
 formatter = logging.Formatter("[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
 logger = logging.getLogger() # I define format and instantiate first logger
-
-
-
 fh = handlers.RotatingFileHandler(log_fname, mode='w', maxBytes=100000, backupCount=3) #This handler is important as I need a handler to pass to my daemon when run in daemon mode
 fh.setFormatter(formatter) 
 logger.addHandler(fh)
-
+#And we define the attributes when running the program
 if getattr(args,'DEBUG'):
-    logger.setLevel(logging.DEBUG)  #I create an option to run the program in debug mode and receive more information on the logs
+    logger.setLevel(logging.DEBUG) 
     fh.setLevel(logging.DEBUG)
 else:
     logger.setLevel(logging.INFO)
@@ -541,26 +533,38 @@ if getattr(args,'d'):
     logging.info("Running with -d in daemon mode.")
 if getattr(args,'DEBUG'):
     logging.info("Running with -DEBUG in DEBUG log mode.")
-
 if getattr(args,'d'):
     config, configuration = load_config()
     context = daemon.DaemonContext(files_preserve = [configuration, fh.stream] )
     with context:
         main()
 elif getattr(args,'s'):
-    logging.info("Running in subscribe mode (with no initialization).")
+    logging.info("Running with -s in message subscribe mode (with no initialization).")
+    global server_config
     config, configuration = load_config()
     server_config = config['SERVERS']
-    mqtt_ip, mqtt_user, mqtt_pass, period, ha_binary_topic, ha_sensor_topic, ha_switch_topic = get_mqtt(config)
+    global mqtt_ip, mqtt_user, mqtt_pass, period, guid_dict, complete_guid_dict, topic_dict, ha_binary_topic, power_topic, mqtt_client_id
+    mqtt_ip, mqtt_user, mqtt_pass, period, ha_binary_topic, ha_sensor_topic, ha_switch_topic, mqtt_client_id = get_mqtt(config)
     topic_dict, power_topic, switch_topic, sdr_topic_types, sdr_count = get_topics(config)
-    client = mqtt.Client("ipmi-mqtt-server")
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.on_publish= on_publish
-    client.username_pw_set(mqtt_user, password=mqtt_pass)
-    guid_dict=get_guid(server_config)
-    client.connect_async(mqtt_ip, 1883, 60)
-    client.loop_start()
-    #switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
+    try:
+        mqtt.Client.connected_flag=False#create flag in class
+        client = mqtt.Client(str(mqtt_client_id), False)
+        client.on_connect = on_connect
+        client.on_message = on_message
+        client.on_publish = on_publish
+        client.on_subscribe = on_subscribe
+        client.username_pw_set(mqtt_user, password=mqtt_pass)
+        client.loop_start()
+        client.connect(mqtt_ip, 1883, 60)
+        while not client.connected_flag: #I wait in a loop until I receive a connection ack.
+            logging.info("Connecting to MQTT Broker: waiting in loop until until the connection is established.")
+            time.sleep(1)
+        logging.info(f"Returning to the main loop, succesfully connected to the broker on {mqtt_ip}, with id {mqtt_client_id} and user {mqtt_user}")
+    except Exception as exception:
+        logging.critical(f"There seems to be a problem connecting to the mqtt server. The exception is {exception}")
+    guid_dict, complete_guid_dict=get_guid(server_config)
+    switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
+    while True:
+        pass
 elif __name__== '__main__':
         main()
