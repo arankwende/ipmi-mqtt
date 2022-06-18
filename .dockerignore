@@ -4,3 +4,4 @@ freebsd-service
 systemd-service
 *.md
 *.yaml
+*/.vscode
