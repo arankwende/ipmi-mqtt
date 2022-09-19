@@ -16,7 +16,7 @@ as well as the following modules with pip:
 
 yaml, paho-mqtt and python-daemon (which are all on ports):
 ```
-sudo pip install yaml paho-mqtt python-daemon
+sudo pip install pyyaml paho-mqtt python-daemon
 ```
 
 for freebsd (pkg):
