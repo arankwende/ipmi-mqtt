@@ -166,6 +166,7 @@ def get_topics(config):
             switch_topic = topic_dict['SWITCH']
             logging.debug("This is your switch topic:" + str(switch_topic))
         else:
+            switch_topic = ""
             logging.warning('There is no switch topic in your YAML file.')
         if 'SDR_TYPES' in topic_dict:
             sdr_topic_types = topic_dict['SDR_TYPES']
@@ -475,7 +476,10 @@ def main(): # Here i have the main program
         quit()
     else:
         #I subscribe for switch topics on the mqtt broker
-        switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
+        if switch_topic != "":
+            switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
+        else:
+            pass
         #And now I run th main loop that will check for ipmi states and publish them
         while(True):
             #Sensor data gathering
