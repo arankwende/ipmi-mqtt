@@ -18,9 +18,9 @@ import logging.handlers as handlers
 def load_config():
     try:
         config_dir = os.path.dirname(os.path.realpath(__file__))
-        config_file = os.path.join(config_dir, 'config/config.yaml')
+        config_file = os.path.join(config_dir,'config', 'config.yaml')
         configuration = open(config_file, 'r')
-        logging.info(f"Opening the following file: {config_file}")
+        logging.info(f'Opening the following file: {config_file}')
         config = yaml.safe_load(configuration)
         return config, configuration
     except Exception as exception:
@@ -168,7 +168,6 @@ def get_topics(config):
         else:
             logging.warning('There is no switch topic in your YAML file.')
         if 'SDR_TYPES' in topic_dict:
-
             sdr_topic_types = topic_dict['SDR_TYPES']
             sdr_count = len(sdr_topic_types)
             logging.debug("This are your SDR topics:" + str(sdr_topic_types))
@@ -371,7 +370,12 @@ def get_sdr_data(current_sdr, server_ip, server_user, server_pass, sdr_topic_typ
             sdr_entity = current_sdr['VALUE']
             ipmi_sdr_command = f"ipmitool -I lanplus -L User -H \"{server_ip}\" -U \"{server_user}\" -P \"{server_pass}\" sdr entity \"{sdr_entity}\""                            
             ipmi_command_subprocess = subprocess.run(ipmi_sdr_command, shell=True, capture_output=True)
-            server_sdr_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()                           
+            server_sdr_state = ipmi_command_subprocess.stdout.decode("utf-8").strip()
+            logging.debug(server_sdr_state)
+#           if server_sdr_state == 'No Reading'
+#                server_sdr_state = 0
+#            else:
+#                pass                           
             sdr_type = current_sdr['SDR_TYPE']
             sdr_type = sdr_topic_types[sdr_type]
             return server_sdr_state, sdr_type
@@ -513,7 +517,7 @@ parser.add_argument('-DEBUG', action='store_true', help='Add Debug messages to l
 args = parser.parse_args()
 #We define the logic and place where we're gonna log things
 log_dir = os.path.dirname(os.path.realpath(__file__))  
-log_fname = os.path.join(log_dir, 'config/ipmi-mqtt.log') #I define a relative path for the log to be saved on the same folder as my py
+log_fname = os.path.join(log_dir, 'config','ipmi-mqtt.log') #I define a relative path for the log to be saved on the same folder as my config file
 formatter = logging.Formatter("[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s")
 logger = logging.getLogger() # I define format and instantiate first logger
 fh = handlers.RotatingFileHandler(log_fname, mode='w', maxBytes=100000, backupCount=3) #This handler is important as I need a handler to pass to my daemon when run in daemon mode
