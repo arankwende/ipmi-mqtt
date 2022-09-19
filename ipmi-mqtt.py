@@ -478,7 +478,9 @@ def main(): # Here i have the main program
         #I subscribe for switch topics on the mqtt broker
         if switch_topic != "":
             switch_subscribe(topic_dict, server_config, guid_dict, ha_switch_topic, switch_topic, client, mqtt_ip)
+            logging.info(f"Subscribing to switch topic.")
         else:
+            logging.info("There is no switch topic to subscribe to.")
             pass
         #And now I run th main loop that will check for ipmi states and publish them
         while(True):
