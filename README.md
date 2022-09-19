@@ -14,7 +14,7 @@ sudo apt install python3 ipmitool python3-pip
 ```
 as well as the following modules with pip:
 
-yaml, paho-mqtt and python-daemon (which are all on ports):
+yaml, paho-mqtt and python-daemon:
 ```
 sudo pip install pyyaml paho-mqtt python-daemon
 ```
