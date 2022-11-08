@@ -10,6 +10,7 @@ MQTT:
 
 TOPICS:
     POWER: 'server_power_state' #This is to get the server's ON OFF state, if you don't want it just leave an empty string
+    #SWITCH: 'server_switch' # UNCOMMENT THE SWITCH LINE IF YOU WANT TO USE A SWITCH
     SDR_TYPES: #THESE ARE JUST EXAMPLES OF NAMES FOR THE SENSORS, ITS A DICTIONARY SO THE first part (before :) can be whatever you want, just ensure it matches the value in SDR TYPE for this description.
         1: 'server_cpu_temp' 
         2: 'server_system_temp'
