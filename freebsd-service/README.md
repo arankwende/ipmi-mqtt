@@ -9,7 +9,7 @@ pkg install nano git python
 Then python and the modules required (they are on ports so no need for pip)
 
 ```
-pkg install py38-daemon py38-yaml py38-paho-mqttp ipmitool
+pkg install py39-daemon py39-yaml py39-paho-mqtt ipmitool
 ```
 Now, we will create an user that will run the ipmi-mqtt, the default is ipmimqtt but any user can be created as long as it's modified via rc.config:
 ```
