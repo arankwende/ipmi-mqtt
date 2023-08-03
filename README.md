@@ -29,7 +29,7 @@ as well as the following modules:
 
 yaml, paho-mqtt and python-daemon (which are all on ports):
 ```
-pkg install py38-daemon py38-yaml py38-paho-mqttp
+pkg install py39-daemon py39-yaml py39-paho-mqtt
 ```
 
 Once installed, just copy this repo (you can use git clone), complete the YAML file and rename it config.yaml in the /config/ folder, make the script executable and run it.
