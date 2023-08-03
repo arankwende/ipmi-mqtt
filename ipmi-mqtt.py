@@ -13,6 +13,7 @@ import sys
 import daemon
 import logging
 import logging.handlers as handlers
+import re
 # First we define all the functions
 # YAML config loading function
 def load_config():
@@ -192,7 +193,7 @@ def power_sdr_initialization(server_config, guid_dict, ha_binary_topic, power_to
                 device_mqtt_config = {"identifiers" : server_identifier, "configuration_url" : "http://" + server['IPMI_IP'], "manufacturer" : server['BRAND'], "name" : server_nodename}
                 server_mqtt_config_topic = ha_binary_topic + "/" + server_identifier + "_" + power_topic + "/" + "config"
                 server_mqtt_state_topic = ha_binary_topic + "/" + server_identifier + "_" + power_topic + "/" + "state"
-                mqtt_payload = {"device" : device_mqtt_config, "device_class" : "power", "name" : server_nodename + " " + power_topic , "unique_id" : server_identifier + "_power_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
+                mqtt_payload = {"device" : device_mqtt_config, "device_class" : "power", "name" : power_topic , "unique_id" : server_identifier + "_power_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic }
                 mqtt_payload = json.dumps(mqtt_payload)  
                 power_payload[server_mqtt_config_topic] = mqtt_payload
                 mqtt_publish_dict(power_payload, client, mqtt_ip)
@@ -213,7 +214,7 @@ def switch_sdr_initialization(server_config, guid_dict, ha_switch_topic, switch_
                 server_mqtt_state_topic = ha_binary_topic + "/" + server_identifier + "_" + power_topic + "/" + "state"
                 server_mqtt_command_topic = ha_switch_topic + "/" + server_identifier + "_" + switch_topic + "/" + "set"
                 # I add a power state to the switch, so that it's based on the power state topic previously created
-                mqtt_payload = {"device" : device_mqtt_config, "device_class" : "switch", "name" : server_nodename + " " + switch_topic , "unique_id" : server_identifier + "_switch_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic, "command_topic": server_mqtt_command_topic, "optimistic": True }
+                mqtt_payload = {"device" : device_mqtt_config, "device_class" : "switch", "name" : switch_topic , "unique_id" : server_identifier + "_switch_", "force_update" : True, "payload_on" : "on", "payload_off" : "off" , "retain" : True, "state_topic" : server_mqtt_state_topic, "command_topic": server_mqtt_command_topic, "optimistic": True }
                 mqtt_payload = json.dumps(mqtt_payload)  
                 switch_payload[server_mqtt_config_topic] = mqtt_payload
                 mqtt_publish_dict(switch_payload, client, mqtt_ip)
@@ -240,22 +241,22 @@ def sensor_sdr_initialization(server_config, guid_dict, sdr_topic_types, ha_sens
                     server_mqtt_state_topic = ha_sensor_topic + "/" + server_identifier + "_" + sdr_topic + "/" + "state" 
                     if sdr_class == 'temperature':
                         unit = "°C"
-                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
                     elif sdr_class == 'temperaturef':
                         unit = "°F"
-                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, "unit_of_meas" : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
                     elif sdr_class == 'voltage':
                         unit = "V"
-                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }
                     elif sdr_class == 'fan':
                         unit = "RPM"
-                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : 'frequency', "name" : server_nodename + " " + sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }                    
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : 'frequency', "name" : sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, 'unit_of_meas' : unit, "force_update" : True,  "retain" : True, "state_topic" : server_mqtt_state_topic }                    
                     elif sdr_class == 'frequency':
                         unit = "Hz"
-                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : server_nodename + " " + sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, 'unit_of_meas' : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+                        mqtt_payload = {"device" : device_mqtt_config, "device_class" : sdr_class, "name" : sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type, 'unit_of_meas' : unit, "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
                     else:
                         logging.warning("no unit defined for this type")
-                        mqtt_payload = {"device" : device_mqtt_config,  "name" : server_nodename + " " + sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type,  "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
+                        mqtt_payload = {"device" : device_mqtt_config,  "name" : sdr_topic , "unique_id" : server_identifier + "_sdr" + sdr_type,  "force_update" : True, "retain" : True, "state_topic" : server_mqtt_state_topic }
                     mqtt_payload = json.dumps(mqtt_payload)  
                     sdr_payload[server_mqtt_config_topic] =  mqtt_payload
                     mqtt_publish_dict(sdr_payload, client, mqtt_ip)
@@ -318,19 +319,23 @@ def supermicro_ipmi_format(current_sdr, server_sdr_state):
             sdr_value = server_sdr_values[4]
             sdr_value = sdr_value[:3]
             sdr_value = sdr_value.strip()
+            sdr_value = re.sub(r'[^0-9]', '', sdr_value)
         elif current_sdr['SDR_CLASS'] == 'fan':
             sdr_value = server_sdr_values[4]
             sdr_value = sdr_value[:6]
             sdr_value = sdr_value.strip()
+            sdr_value = re.sub(r'[^0-9]', '', sdr_value)
         elif current_sdr['SDR_CLASS'] == 'frequency':
             sdr_value = server_sdr_values[4]
             sdr_value = sdr_value[:6]
             sdr_value = sdr_value.strip()
+            sdr_value = re.sub(r'[^0-9]', '', sdr_value)
             sdr_value = int(sdr_value)/60
         elif current_sdr['SDR_CLASS'] == 'voltage':
             sdr_value = server_sdr_values[4]
             sdr_value = sdr_value[:6]
             sdr_value = sdr_value.strip()
+            sdr_value = re.sub(r'[^0-9]', '', sdr_value)
         else:
             sdr_value = server_sdr_values[4]
             logging.info(f"The SDR class {current_sdr['SDR_CLASS']} is not defined so we're gonna take the complete information from the column.")
@@ -347,19 +352,23 @@ def asus_ipmi_format(current_sdr, server_sdr_state):
             sdr_value = server_sdr_values[4]
             sdr_value = sdr_value[:3]
             sdr_value = sdr_value.strip()
+            sdr_value = re.sub(r'[^0-9]', '', sdr_value)
         elif current_sdr['SDR_CLASS'] == 'fan':
             sdr_value = server_sdr_values[4]
             sdr_value = sdr_value[:6]
             sdr_value = sdr_value.strip()
+            sdr_value = re.sub(r'[^0-9]', '', sdr_value)
         elif current_sdr['SDR_CLASS'] == 'frequency':
             sdr_value = server_sdr_values[4]
             sdr_value = sdr_value[:6]
             sdr_value = sdr_value.strip()
+            sdr_value = re.sub(r'[^0-9]', '', sdr_value)
             sdr_value = int(sdr_value)/60
         elif current_sdr['SDR_CLASS'] == 'voltage':
             sdr_value = server_sdr_values[4]
             sdr_value = sdr_value[:6]
             sdr_value = sdr_value.strip()
+            sdr_value = re.sub(r'[^0-9]', '', sdr_value)
         else:
             sdr_value = server_sdr_values[4]
             logging.info(f"The SDR class {current_sdr['SDR_CLASS']} is not defined so we're gonna take the complete information from the column.")
